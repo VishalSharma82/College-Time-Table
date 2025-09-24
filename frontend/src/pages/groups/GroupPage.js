@@ -6,31 +6,44 @@ export default function GroupPage() {
   const { id } = useParams();
   const [group, setGroup] = useState(null);
   const [resources, setResources] = useState([]);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+  const [loadingResources, setLoadingResources] = useState(true);
 
-  useEffect(()=> {
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    // Fetch group details
     (async () => {
       try {
-        const res = await api.get(`/groups/${id}`);
+        const res = await api.get(`/groups/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         setGroup(res.data);
       } catch (err) {
-        setError(err.response?.data?.message || 'Cannot open group');
+        setError(err.response?.data?.message || "Cannot open group");
       }
     })();
 
+    // Fetch resources
     (async () => {
       try {
-        const res = await api.get('/resources/visible'); // resources from groups you're member of are included
-        const gres = res.data.filter(r => r.group && r.group === id || (r.group && r.group._id === id));
+        const res = await api.get("/resources/visible", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const gres = res.data.filter(
+          (r) => r.group && (r.group === id || r.group._id === id)
+        );
         setResources(gres);
       } catch (err) {
         console.error(err);
+      } finally {
+        setLoadingResources(false);
       }
     })();
   }, [id]);
 
   if (error) return <div className="p-6 text-red-500">{error}</div>;
-  if (!group) return <div className="p-6">Loading...</div>;
+  if (!group) return <div className="p-6">Loading group...</div>;
 
   return (
     <div className="min-h-screen p-6 bg-gray-50">
@@ -41,13 +54,18 @@ export default function GroupPage() {
 
         <div className="mt-4">
           <h3 className="font-semibold mb-2">Resources</h3>
-          {resources.length === 0 && <p className="text-sm text-gray-500">No resources yet.</p>}
-          {resources.map(r=> (
-            <div key={r._id} className="p-3 border rounded mb-2">
-              <h4 className="font-medium">{r.title}</h4>
-              <p className="text-sm text-gray-600">{r.content}</p>
-            </div>
-          ))}
+          {loadingResources ? (
+            <p className="text-sm text-gray-500">Loading resources...</p>
+          ) : resources.length === 0 ? (
+            <p className="text-sm text-gray-500">No resources yet.</p>
+          ) : (
+            resources.map((r) => (
+              <div key={r._id} className="p-3 border rounded mb-2">
+                <h4 className="font-medium">{r.title}</h4>
+                <p className="text-sm text-gray-600">{r.content}</p>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
