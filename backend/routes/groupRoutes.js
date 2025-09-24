@@ -212,4 +212,35 @@ router.delete("/:id", auth, requireRole("admin"), async (req, res) => {
   }
 });
 
+// Get group details for any member (teacher included)
+router.get("/:id/view", auth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id)
+      .populate("owner", "name email role")
+      .populate("members", "name email role");
+
+    if (!group) return res.status(404).json({ message: "Group not found" });
+
+    // Check if current user is member
+    if (!group.members.some((m) => m._id.toString() === req.user.id)) {
+      return res
+        .status(403)
+        .json({ message: "You are not a member of this group" });
+    }
+
+    // Teacher/admin can see subjects, timetable & constraints
+    res.json({
+      name: group.name,
+      owner: group.owner,
+      subjects: group.subjects,
+      teachers: group.teachers,
+      timetable: group.timetable,
+      constraints: group.constraints,
+    });
+  } catch (err) {
+    console.error("Error fetching group:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;
