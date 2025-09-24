@@ -146,9 +146,9 @@ router.get("/:id", auth, requireRole("admin"), async (req, res) => {
   try {
     const group = await Group.findById(req.params.id)
       .populate("owner", "name email role")
-      .populate("members", "name email role")
-      .populate("subjects")   // if subjects schema exists
-      .populate("teachers");  // if teachers schema exists
+      .populate("members", "name email role");
+    // .populate("subjects")   // if subjects schema exists
+    // .populate("teachers");  // if teachers schema exists
 
     if (!group) return res.status(404).json({ message: "Group not found" });
 
@@ -165,7 +165,6 @@ router.get("/:id", auth, requireRole("admin"), async (req, res) => {
     res.status(500).json({ message: "Server error while fetching group" });
   }
 });
-
 
 router.patch("/:id", auth, requireRole("admin"), async (req, res) => {
   try {
