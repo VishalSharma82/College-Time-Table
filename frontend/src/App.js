@@ -13,6 +13,18 @@ import { AuthContext } from "./context/AuthContext";
 import CreateGroup from "./pages/groups/CreateGroup";
 import JoinGroup from "./pages/groups/JoinGroup";
 import GroupPage from "./pages/groups/GroupPage";
+import AdminGroupDetails from "./pages/AdminGroupDetails";
+
+// Protected Route Component
+const ProtectedRoute = ({ children, roles }) => {
+  const { user } = useContext(AuthContext);
+
+  if (!user) return <Navigate to="/login" />;
+
+  if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" />;
+
+  return children;
+};
 
 function App() {
   const { user } = useContext(AuthContext);
@@ -20,6 +32,7 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route
           path="/login"
@@ -29,25 +42,47 @@ function App() {
           path="/register"
           element={!user ? <Register /> : <Navigate to="/dashboard" />}
         />
+
+        {/* Protected Dashboard */}
         <Route
           path="/dashboard"
-          element={user ? <Dashboard /> : <Navigate to="/login" />}
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
         />
-        <Route
-          path="*"
-          element={<Navigate to={user ? "/dashboard" : "/login"} />}
-        />
+
+        {/* Protected Group Routes */}
         <Route
           path="/groups/create"
-          element={user ? <CreateGroup /> : <Navigate to="/login" />}
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <CreateGroup />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/groups/join"
-          element={user ? <JoinGroup /> : <Navigate to="/login" />}
+          element={
+            <ProtectedRoute roles={["user"]}>
+              <JoinGroup />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/groups/:id"
-          element={user ? <GroupPage /> : <Navigate to="/login" />}
+          element={
+            <ProtectedRoute>
+              {user?.role === "admin" ? <AdminGroupDetails user={user} /> : <GroupPage />}
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Catch All */}
+        <Route
+          path="*"
+          element={<Navigate to={user ? "/dashboard" : "/login"} />}
         />
       </Routes>
     </Router>

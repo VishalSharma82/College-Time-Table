@@ -139,6 +139,34 @@ router.get("/joined", auth, async (req, res) => {
   }
 });
 
+/**
+ * Get single group by ID — only owner can access
+ */
+router.get("/:id", auth, requireRole("admin"), async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id)
+      .populate("owner", "name email role")
+      .populate("members", "name email role")
+      .populate("subjects")   // if subjects schema exists
+      .populate("teachers");  // if teachers schema exists
+
+    if (!group) return res.status(404).json({ message: "Group not found" });
+
+    // Only owner admin can access
+    if (group.owner._id.toString() !== req.user.id) {
+      return res
+        .status(403)
+        .json({ message: "You do not have permission to view this group" });
+    }
+
+    res.json(group);
+  } catch (err) {
+    console.error("Error fetching group by ID:", err);
+    res.status(500).json({ message: "Server error while fetching group" });
+  }
+});
+
+
 router.patch("/:id", auth, requireRole("admin"), async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);

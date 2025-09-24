@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 
 export default function AdminDashboard({ user }) {
@@ -9,18 +10,21 @@ export default function AdminDashboard({ user }) {
   const [groupPassword, setGroupPassword] = useState("");
   const [loadingGroup, setLoadingGroup] = useState(false);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     fetchJoinedGroups();
+    // eslint-disable-next-line
   }, []);
 
   async function fetchJoinedGroups() {
     try {
-      const res = await api.get("/groups/joined", {
+      const res = await api.get("/groups/mine", {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       setJoinedGroups(res.data);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to fetch groups:", err);
     }
   }
 
@@ -29,28 +33,20 @@ export default function AdminDashboard({ user }) {
     setLoadingGroup(true);
     try {
       if (editingGroup) {
-        // Edit mode
+        // Update existing group
         await api.patch(
           `/groups/${editingGroup._id}`,
           { name: groupName, password: groupPassword },
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
+          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         );
         alert("Group updated successfully");
         setEditingGroup(null);
       } else {
-        // Create mode
+        // Create new group
         await api.post(
           "/groups",
           { name: groupName, password: groupPassword },
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
+          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
         );
         alert("Group created successfully");
       }
@@ -75,6 +71,7 @@ export default function AdminDashboard({ user }) {
 
   const handleDelete = async (groupId) => {
     if (!window.confirm("Are you sure you want to delete this group?")) return;
+
     try {
       await api.delete(`/groups/${groupId}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -86,30 +83,52 @@ export default function AdminDashboard({ user }) {
     }
   };
 
+  const handleView = (group) => {
+    // Only owner can view
+    if (group.owner?._id !== user._id) {
+      alert("You do not have permission to view this group");
+      return;
+    }
+    navigate(`/groups/${group._id}`);
+  };
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
+    <div className="p-6 max-w-5xl mx-auto bg-gray-50 min-h-screen">
+      <h1 className="text-4xl font-bold mb-6 text-center text-indigo-700">
+        Admin Dashboard
+      </h1>
 
-      <button
-        onClick={() => {
-          setShowGroupForm(!showGroupForm);
-          setEditingGroup(null);
-          setGroupName("");
-          setGroupPassword("");
-        }}
-        className="px-4 py-2 bg-indigo-600 text-white rounded mb-4"
-      >
-        {showGroupForm ? "Cancel" : "Create Group"}
-      </button>
+      {/* Create / Edit Group Button */}
+      <div className="flex justify-center mb-6">
+        <button
+          onClick={() => {
+            setShowGroupForm(!showGroupForm);
+            setEditingGroup(null);
+            setGroupName("");
+            setGroupPassword("");
+          }}
+          className="px-5 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition"
+        >
+          {showGroupForm
+            ? "Cancel"
+            : editingGroup
+            ? "Edit Group"
+            : "Create Group"}
+        </button>
+      </div>
 
+      {/* Create / Edit Form */}
       {showGroupForm && (
-        <form onSubmit={handleGroupSubmit} className="space-y-3 mb-4">
+        <form
+          onSubmit={handleGroupSubmit}
+          className="bg-white p-6 rounded-lg shadow-md mb-6 space-y-4"
+        >
           <input
             type="text"
             placeholder="Group Name"
             value={groupName}
             onChange={(e) => setGroupName(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg"
+            className="w-full px-4 py-2 border rounded-lg focus:ring focus:ring-indigo-200"
             required
           />
           <input
@@ -117,13 +136,13 @@ export default function AdminDashboard({ user }) {
             placeholder="Group Password"
             value={groupPassword}
             onChange={(e) => setGroupPassword(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg"
-            required={!editingGroup} // required only for create
+            className="w-full px-4 py-2 border rounded-lg focus:ring focus:ring-indigo-200"
+            required={!editingGroup}
           />
           <button
             type="submit"
             disabled={loadingGroup}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+            className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
           >
             {loadingGroup
               ? editingGroup
@@ -136,28 +155,48 @@ export default function AdminDashboard({ user }) {
         </form>
       )}
 
-      <h2 className="text-lg font-semibold mb-2">Groups</h2>
-      <ul>
-        {joinedGroups.map((g) => (
-          <li key={g._id} className="flex items-center justify-between mb-2">
-            <span>{g.name}</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleEdit(g)}
-                className="px-2 py-1 bg-yellow-500 text-white rounded"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => handleDelete(g._id)}
-                className="px-2 py-1 bg-red-500 text-white rounded"
-              >
-                Delete
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {/* Groups List */}
+      <h2 className="text-2xl font-semibold mb-4">My Groups</h2>
+      {joinedGroups.length === 0 ? (
+        <p className="text-gray-500 text-center">No groups created yet.</p>
+      ) : (
+        <ul className="space-y-4">
+          {joinedGroups.map((group) => (
+            <li
+              key={group._id}
+              className="flex justify-between items-center bg-white shadow-md p-4 rounded-lg hover:shadow-lg transition"
+            >
+              <div>
+                <h3 className="text-lg font-semibold">{group.name}</h3>
+                <span className="text-sm text-gray-500">
+                  Created on: {new Date(group.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleView(group)}
+                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                >
+                  View
+                </button>
+                <button
+                  onClick={() => handleEdit(group)}
+                  className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(group._id)}
+                  className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                >
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
