@@ -139,37 +139,7 @@ router.get("/joined", auth, async (req, res) => {
   }
 });
 
-/**
- * Get single group details — only owner or member can access
- */
-router.get("/:id", auth, async (req, res) => {
-  try {
-    const group = await Group.findById(req.params.id)
-      .populate("members", "name email role")
-      .populate("owner", "name email role");
-
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    const isMember = group.members.some(
-      (m) => m._id.toString() === req.user.id
-    );
-    const isOwner = group.owner._id.toString() === req.user.id;
-    if (!isMember && !isOwner)
-      return res
-        .status(403)
-        .json({ message: "Forbidden: not a member or owner" });
-
-    res.json(group);
-  } catch (err) {
-    console.error("Error fetching group details:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-/**
- * Delete group (only owner/admin)
- */
-router.delete("/:id", auth, requireRole("admin"), async (req, res) => {
+router.patch("/:id", auth, requireRole("admin"), async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ message: "Group not found" });
@@ -177,13 +147,41 @@ router.delete("/:id", auth, requireRole("admin"), async (req, res) => {
     if (group.owner.toString() !== req.user.id)
       return res
         .status(403)
+        .json({ message: "Only owner can update this group" });
+
+    const { name, description, password } = req.body;
+
+    if (name) group.name = name;
+    if (description) group.description = description;
+    if (password) {
+      const bcrypt = require("bcryptjs");
+      group.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    await group.save();
+    res.json({ message: "Group updated successfully", group });
+  } catch (err) {
+    console.error("Error updating group:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+// Delete group — only owner (admin) can delete
+router.delete("/:id", auth, requireRole("admin"), async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ message: "Group not found" });
+
+    // Only owner can delete
+    if (group.owner.toString() !== req.user.id)
+      return res
+        .status(403)
         .json({ message: "Only owner can delete this group" });
 
-    await group.remove();
+    await group.deleteOne(); // ← updated
     res.json({ message: "Group deleted successfully" });
   } catch (err) {
     console.error("Error deleting group:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error while deleting group" });
   }
 });
 
