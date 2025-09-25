@@ -14,6 +14,7 @@ import CreateGroup from "./pages/groups/CreateGroup";
 import JoinGroup from "./pages/groups/JoinGroup";
 import GroupPage from "./pages/groups/GroupPage";
 import AdminGroupDetails from "./pages/AdminGroupDetails";
+import TimetableWizard from "./pages/TimetableWizard"; // Import the new component
 
 // Protected Route Component
 const ProtectedRoute = ({ children, roles }) => {
@@ -75,6 +76,16 @@ function App() {
           element={
             <ProtectedRoute>
               {user?.role === "admin" ? <AdminGroupDetails user={user} /> : <GroupPage />}
+            </ProtectedRoute>
+          }
+        />
+        
+        {/* New Route for Timetable Wizard */}
+        <Route
+          path="/groups/:id/timetable-wizard"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <TimetableWizard />
             </ProtectedRoute>
           }
         />

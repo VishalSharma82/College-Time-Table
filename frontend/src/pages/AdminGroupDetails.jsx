@@ -61,7 +61,9 @@ export default function AdminGroupDetails({ user: initialUser }) {
 
       const groupData = res.data;
 
-      if (groupData.owner?._id.toString() !== (user?._id || initialUser?._id)) {
+      // Ensure user is the owner before setting state
+      const isOwner = groupData.owner?._id.toString() === (user?._id || initialUser?._id);
+      if (!isOwner) {
         alert("You do not have permission to view this group");
         navigate("/admin/dashboard");
         return;
@@ -99,6 +101,11 @@ export default function AdminGroupDetails({ user: initialUser }) {
       setGenerating(false);
     }
   };
+  
+  // New handler to navigate to the wizard page
+  const handleOpenWizard = () => {
+    navigate(`/groups/${id}/timetable-wizard`);
+  };
 
   if (loading)
     return (
@@ -113,6 +120,8 @@ export default function AdminGroupDetails({ user: initialUser }) {
         {error}
       </div>
     );
+
+  const isOwner = group?.owner?._id.toString() === user?._id;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -129,7 +138,25 @@ export default function AdminGroupDetails({ user: initialUser }) {
       </p>
       <p className="text-gray-400 text-sm">Owner: {group.owner?.name}</p>
 
+      {/* Conditional rendering for the new button */}
+      {isOwner && (
+        <button
+          onClick={handleOpenWizard}
+          className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-colors duration-300"
+        >
+          Generate Timetable ⚡️
+        </button>
+      )}
+
       {/* Timetable + Details UI (same as before) */}
+      <div className="bg-white shadow-md rounded-lg p-6">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-4">Timetable</h2>
+        {timetable && timetable.length > 0 ? (
+          <p>Timetable data will be displayed here.</p>
+        ) : (
+          <p className="text-gray-500">No timetable generated yet.</p>
+        )}
+      </div>
     </div>
   );
 }

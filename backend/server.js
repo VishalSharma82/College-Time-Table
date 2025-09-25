@@ -5,6 +5,8 @@ const dotenv = require("dotenv");
 const authRoutes = require("./routes/authRoutes");
 const groupRoutes = require('./routes/groupRoutes');
 const resourceRoutes = require('./routes/resourceRoutes');
+const timetableRoutes = require("./routes/timetableRoutes");
+
 
 dotenv.config();
 const app = express();
@@ -22,6 +24,7 @@ app.use(cors({
 app.use("/api/auth", authRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/resources", resourceRoutes);
+app.use("/api/timetable", timetableRoutes);
 
 // MongoDB Connect + Start Server
 mongoose
