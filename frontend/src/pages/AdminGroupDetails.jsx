@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axios";
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
 export default function AdminGroupDetails({ user: initialUser }) {
   const { id } = useParams();
@@ -8,12 +9,9 @@ export default function AdminGroupDetails({ user: initialUser }) {
 
   const [user, setUser] = useState(initialUser || null);
   const [group, setGroup] = useState(null);
-  const [subjects, setSubjects] = useState([]);
-  const [teachers, setTeachers] = useState([]);
-  const [constraints, setConstraints] = useState({});
   const [timetable, setTimetable] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -25,7 +23,6 @@ export default function AdminGroupDetails({ user: initialUser }) {
         return;
       }
 
-      // If user prop not passed → fetch from backend
       if (!initialUser?._id) {
         try {
           const res = await api.get("/auth/me", {
@@ -41,11 +38,9 @@ export default function AdminGroupDetails({ user: initialUser }) {
         setUser(initialUser);
       }
     };
-
     init();
   }, [initialUser]);
 
-  // ✅ now call group fetch only when user is ready
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token && user?._id) {
@@ -60,9 +55,8 @@ export default function AdminGroupDetails({ user: initialUser }) {
       });
 
       const groupData = res.data;
-
-      // Ensure user is the owner before setting state
       const isOwner = groupData.owner?._id.toString() === (user?._id || initialUser?._id);
+      
       if (!isOwner) {
         alert("You do not have permission to view this group");
         navigate("/admin/dashboard");
@@ -70,9 +64,6 @@ export default function AdminGroupDetails({ user: initialUser }) {
       }
 
       setGroup(groupData);
-      setSubjects(groupData.subjects || []);
-      setTeachers(groupData.teachers || []);
-      setConstraints(groupData.constraints || {});
       setTimetable(groupData.timetable || []);
     } catch (err) {
       console.error("Fetch group error:", err.response?.data || err.message);
@@ -82,81 +73,130 @@ export default function AdminGroupDetails({ user: initialUser }) {
     }
   };
 
-  const handleGenerateTimetable = async () => {
-    setGenerating(true);
+  const handleSaveTimetable = async () => {
+    setSaving(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await api.post(
-        `/groups/${id}/generate-timetable`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setTimetable(res.data.timetable || []);
-      alert("Timetable generated successfully!");
+      await api.patch(`/groups/${id}/timetable`, { timetable }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert("Timetable saved successfully!");
     } catch (err) {
-      console.error("Generate timetable error:", err.response || err.message);
-      alert(err.response?.data?.message || "Error generating timetable");
+      console.error("Save timetable error:", err.response?.data || err.message);
+      alert(err.response?.data?.message || "Error saving timetable.");
     } finally {
-      setGenerating(false);
+      setSaving(false);
     }
   };
-  
-  // New handler to navigate to the wizard page
-  const handleOpenWizard = () => {
-    navigate(`/groups/${id}/timetable-wizard`);
+
+  const onDragEnd = (result) => {
+    const { source, destination } = result;
+
+    if (!destination) return;
+
+    const sourceDayIndex = timetable.findIndex(d => d.day === source.droppableId);
+    const destDayIndex = timetable.findIndex(d => d.day === destination.droppableId);
+
+    const newTimetable = Array.from(timetable);
+    const [removedSlot] = newTimetable[sourceDayIndex].slots.splice(source.index, 1, {
+      period: newTimetable[sourceDayIndex].slots[source.index].period,
+      subject: "Free",
+      teacher: "N/A",
+      room: "N/A"
+    });
+    
+    // Swap logic for a smooth drag-and-drop
+    const [destinationSlot] = newTimetable[destDayIndex].slots.splice(destination.index, 1, removedSlot);
+    newTimetable[sourceDayIndex].slots[source.index] = destinationSlot;
+
+    setTimetable(newTimetable);
   };
 
   if (loading)
-    return (
-      <div className="flex justify-center items-center min-h-screen text-gray-500 text-lg">
-        Loading group details...
-      </div>
-    );
+    return <div className="flex justify-center items-center min-h-screen text-gray-500 text-lg">Loading...</div>;
 
   if (error)
-    return (
-      <div className="flex justify-center items-center min-h-screen text-red-500 text-lg">
-        {error}
-      </div>
-    );
+    return <div className="flex justify-center items-center min-h-screen text-red-500 text-lg">{error}</div>;
 
   const isOwner = group?.owner?._id.toString() === user?._id;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <button
-        onClick={() => navigate("/admin/dashboard")}
-        className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 mb-4"
-      >
-        &larr; Back to Dashboard
-      </button>
+      <button onClick={() => navigate("/admin/dashboard")} className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 mb-4">&larr; Back to Dashboard</button>
 
-      <h1 className="text-3xl font-bold text-indigo-700">{group.name}</h1>
-      <p className="text-gray-500">
-        Created on: {new Date(group.createdAt).toLocaleDateString()}
-      </p>
-      <p className="text-gray-400 text-sm">Owner: {group.owner?.name}</p>
-
-      {/* Conditional rendering for the new button */}
-      {isOwner && (
-        <button
-          onClick={handleOpenWizard}
-          className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-colors duration-300"
-        >
-          Generate Timetable ⚡️
-        </button>
-      )}
-
-      {/* Timetable + Details UI (same as before) */}
-      <div className="bg-white shadow-md rounded-lg p-6">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-4">Timetable</h2>
-        {timetable && timetable.length > 0 ? (
-          <p>Timetable data will be displayed here.</p>
-        ) : (
-          <p className="text-gray-500">No timetable generated yet.</p>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-indigo-700">{group.name}</h1>
+        {isOwner && (
+          <div className="space-x-2">
+            <button onClick={() => navigate(`/groups/${id}/timetable-wizard`)} className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-colors">
+              Generate Timetable ⚡️
+            </button>
+            <button onClick={handleSaveTimetable} disabled={saving} className={`px-6 py-3 rounded-lg font-semibold transition-colors ${saving ? 'bg-green-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}>
+              {saving ? "Saving..." : "Save Edits"}
+            </button>
+          </div>
         )}
       </div>
+
+      <p className="text-gray-500">Created on: {new Date(group.createdAt).toLocaleDateString()}</p>
+      <p className="text-gray-400 text-sm">Owner: {group.owner?.name}</p>
+
+      <h2 className="text-2xl font-semibold text-gray-800 mt-8 mb-4">Timetable Editor</h2>
+      {timetable.length > 0 ? (
+        <DragDropContext onDragEnd={onDragEnd}>
+          <div className="bg-white rounded-lg shadow-md p-4 overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <th key={i} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Period {i + 1}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {timetable.map((day, dayIndex) => (
+                  <tr key={day.day}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{day.day}</td>
+                    <Droppable droppableId={day.day} direction="horizontal">
+                      {(provided) => (
+                        <td
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className="flex"
+                        >
+                          {day.slots.map((slot, slotIndex) => (
+                            <Draggable key={slotIndex} draggableId={`${day.day}-${slotIndex}`} index={slotIndex}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={`p-4 m-2 text-center rounded-lg shadow-sm border border-gray-200 ${
+                                    snapshot.isDragging ? "bg-indigo-100" : "bg-gray-100"
+                                  } min-w-[120px]`}
+                                >
+                                  <p className="font-semibold text-gray-700">{slot.subject || "Free"}</p>
+                                  <p className="text-xs text-gray-500 mt-1">{slot.teacher || "N/A"}</p>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </td>
+                      )}
+                    </Droppable>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DragDropContext>
+      ) : (
+        <p className="text-gray-500">No timetable available. Click "Generate Timetable" to create one.</p>
+      )}
     </div>
   );
 }

@@ -4,6 +4,8 @@ const bcrypt = require("bcryptjs");
 const auth = require("../middleware/authMiddleware"); // JWT verify
 const requireRole = require("../middleware/requireRole"); // role check
 const Group = require("../models/Group");
+const isGroupOwner = require("../middleware/isGroupOwner");
+const { updateTimetable } = require("../controllers/timetableController");
 
 const router = express.Router();
 
@@ -242,5 +244,7 @@ router.get("/:id/view", auth, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+router.patch("/:id/timetable", auth, requireRole("admin"), isGroupOwner, updateTimetable);
 
 module.exports = router;

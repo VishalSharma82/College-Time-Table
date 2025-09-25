@@ -24,7 +24,7 @@ app.use(cors({
 app.use("/api/auth", authRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/resources", resourceRoutes);
-app.use("/api/timetable", timetableRoutes);
+app.use("/api/groups", timetableRoutes); // ✅ Fix: We now mount the timetable routes under the /api/groups path
 
 // MongoDB Connect + Start Server
 mongoose

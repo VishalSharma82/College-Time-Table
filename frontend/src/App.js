@@ -43,7 +43,6 @@ function App() {
           path="/register"
           element={!user ? <Register /> : <Navigate to="/dashboard" />}
         />
-
         {/* Protected Dashboard */}
         <Route
           path="/dashboard"
@@ -53,7 +52,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         {/* Protected Group Routes */}
         <Route
           path="/groups/create"
@@ -75,12 +73,20 @@ function App() {
           path="/groups/:id"
           element={
             <ProtectedRoute>
-              {user?.role === "admin" ? <AdminGroupDetails user={user} /> : <GroupPage />}
+              {user?.role === "admin" ?
+                <AdminGroupDetails user={user} /> : <GroupPage />}
             </ProtectedRoute>
           }
         />
-        
-        {/* New Route for Timetable Wizard */}
+        {/* New Admin-only Group Routes */}
+        <Route
+          path="/groups/:id"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <AdminGroupDetails user={user} />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/groups/:id/timetable-wizard"
           element={
@@ -89,7 +95,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         {/* Catch All */}
         <Route
           path="*"

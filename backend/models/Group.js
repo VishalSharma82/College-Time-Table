@@ -5,18 +5,31 @@ const mongoose = require("mongoose");
 const subjectSchema = new mongoose.Schema({
     name: { type: String, required: true },
     abbreviation: { type: String, required: true },
-    isLab: { type: Boolean, default: false }, // Is it a lab subject?
+    isLab: { type: Boolean, default: false },
     periodsPerWeek: { type: Number, required: true },
 });
 
 const teacherSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    subject: { type: String, required: true }, // The subject they teach
-    // A teacher's constraints can be added later
+    subjects: [{ type: String }],
+});
+
+const subjectAssignmentSchema = new mongoose.Schema({
+    subject: { type: String, required: true },
+    periods: { type: Number, required: true },
+    teacher: { type: String, default: null } // ✅ Fixed: The teacher field is no longer required and defaults to null.
 });
 
 const classSchema = new mongoose.Schema({
     name: { type: String, required: true },
+    periodsPerDay: {
+        Mon: { type: Number, default: 0 },
+        Tue: { type: Number, default: 0 },
+        Wed: { type: Number, default: 0 },
+        Thu: { type: Number, default: 0 },
+        Fri: { type: Number, default: 0 },
+    },
+    subjectsAssigned: [subjectAssignmentSchema]
 });
 
 // Timetable schema for a slot
@@ -45,8 +58,6 @@ const groupSchema = new mongoose.Schema(
         passwordHash: { type: String, required: true },
         members: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
         isPrivate: { type: Boolean, default: true },
-
-        // New, structured timetable fields
         subjects: [subjectSchema],
         teachers: [teacherSchema],
         classes: [classSchema],
