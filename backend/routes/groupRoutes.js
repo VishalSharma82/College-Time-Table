@@ -90,7 +90,7 @@ router.post("/join", auth, async (req, res) => {
         .status(400)
         .json({ message: "Group ID and password are required" });
 
-    const group = await Group.findById(groupId);
+    const group = await Group.findById(req.params.groupId);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
     if (group.members.includes(req.user.id))
@@ -245,6 +245,160 @@ router.get("/:id/view", auth, async (req, res) => {
   }
 });
 
-router.patch("/:id/timetable", auth, requireRole("admin"), isGroupOwner, updateTimetable);
+// Add new subject
+router.post(
+  "/:id/subjects",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  async (req, res) => {
+    try {
+      const { name, abbreviation, isLab } = req.body;
+      const group = await Group.findById(req.params.id);
+      if (!group) return res.status(404).json({ message: "Group not found" });
+
+      group.subjects.push({ name, abbreviation, isLab });
+      await group.save();
+
+      res.json({ message: "Subject added", subjects: group.subjects });
+    } catch (err) {
+      console.error("Error adding subject:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+// Update subject
+router.put(
+  "/:id/subjects/:subjectId",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  async (req, res) => {
+    try {
+      const group = await Group.findById(req.params.id);
+      if (!group) return res.status(404).json({ message: "Group not found" });
+
+      const subject = group.subjects.id(req.params.subjectId);
+      if (!subject)
+        return res.status(404).json({ message: "Subject not found" });
+
+      Object.assign(subject, req.body);
+      await group.save();
+
+      res.json({ message: "Subject updated", subjects: group.subjects });
+    } catch (err) {
+      console.error("Error updating subject:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+// Delete subject
+router.delete(
+  "/:id/subjects/:subjectId",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  async (req, res) => {
+    try {
+      const group = await Group.findById(req.params.id);
+      if (!group) return res.status(404).json({ message: "Group not found" });
+
+      group.subjects = group.subjects.filter(
+        (s) => s._id.toString() !== req.params.subjectId
+      );
+      await group.save();
+
+      res.json({ message: "Subject deleted", subjects: group.subjects });
+    } catch (err) {
+      console.error("Error deleting subject:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+// Add teacher
+router.post(
+  "/:id/teachers",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  async (req, res) => {
+    try {
+      console.log("🔹 Add Subject Body:", req.body); // 👈
+      console.log("🔹 Group ID:", req.params.id); // 👈
+      const { name, subjects } = req.body; // subjects = [subjectId or subject names]
+      const group = await Group.findById(req.params.id);
+      if (!group) return res.status(404).json({ message: "Group not found" });
+
+      group.teachers.push({ name, subjects });
+      await group.save();
+
+      res.json({ message: "Teacher added", teachers: group.teachers });
+    } catch (err) {
+      console.error("Error adding teacher:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+// Update teacher
+router.put(
+  "/:id/teachers/:teacherId",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  async (req, res) => {
+    try {
+      const group = await Group.findById(req.params.id);
+      if (!group) return res.status(404).json({ message: "Group not found" });
+
+      const teacher = group.teachers.id(req.params.teacherId);
+      if (!teacher)
+        return res.status(404).json({ message: "Teacher not found" });
+
+      Object.assign(teacher, req.body);
+      await group.save();
+
+      res.json({ message: "Teacher updated", teachers: group.teachers });
+    } catch (err) {
+      console.error("Error updating teacher:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+// Delete teacher
+router.delete(
+  "/:id/teachers/:teacherId",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  async (req, res) => {
+    try {
+      const group = await Group.findById(req.params.id);
+      if (!group) return res.status(404).json({ message: "Group not found" });
+
+      group.teachers = group.teachers.filter(
+        (t) => t._id.toString() !== req.params.teacherId
+      );
+      await group.save();
+
+      res.json({ message: "Teacher deleted", teachers: group.teachers });
+    } catch (err) {
+      console.error("Error deleting teacher:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+router.patch(
+  "/:id/timetable",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  updateTimetable
+);
 
 module.exports = router;
