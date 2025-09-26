@@ -44,67 +44,72 @@ exports.generateTimetable = async (req, res) => {
   try {
     const group = req.group;
 
-    // --- Step 1: Dynamic Config ---
     const days = group.settings?.days || ["Mon", "Tue", "Wed", "Thu", "Fri"];
     const maxPeriods = group.settings?.maxPeriods || 6;
     const rooms = group.settings?.rooms || ["101", "102", "LAB-306"];
 
-    // --- Step 2: Validation ---
     if (!group.classes || group.classes.length === 0) {
-      throw new Error(
-        `Input Error: You must define at least one class in Step 3.`
-      );
+      throw new Error("You must define at least one class.");
     }
 
-    for (const classEntry of group.classes) {
-      const totalAvailableSlots = Object.values(
-        classEntry.periodsPerDay
-      ).reduce((sum, p) => sum + p, 0);
-      const totalAssignedPeriods = classEntry.subjectsAssigned.reduce(
-        (sum, sa) => sum + sa.periods,
+    // --- Step 1: Validation & defaults ---
+    for (const cls of group.classes) {
+      cls.periodsPerDay = cls.periodsPerDay || {};
+      days.forEach((day) => {
+        if (!cls.periodsPerDay[day]) cls.periodsPerDay[day] = 0;
+      });
+
+      cls.subjectsAssigned = cls.subjectsAssigned || [];
+
+      const totalAvailable = Object.values(cls.periodsPerDay).reduce(
+        (sum, p) => sum + (p || 0),
+        0
+      );
+      const totalAssigned = cls.subjectsAssigned.reduce(
+        (sum, sa) => sum + (sa.periods || 0),
         0
       );
 
-      if (totalAvailableSlots !== totalAssignedPeriods) {
+      if (totalAvailable !== totalAssigned) {
         throw new Error(
-          `Input Error: For class '${classEntry.name}', total available periods (${totalAvailableSlots}) do not match total periods assigned to subjects (${totalAssignedPeriods}). Please fix this in Step 3.`
+          `Class '${cls.name}' mismatch: available periods (${totalAvailable}) != assigned periods (${totalAssigned}).`
         );
       }
     }
 
-    // --- Step 3: Prepare Assignment Pool ---
-    const allAssignments = [];
-    group.classes.forEach((classEntry) => {
-      classEntry.subjectsAssigned.forEach((assignment) => {
-        const subjectConfig = group.subjects.find(
-          (s) => s.abbreviation === assignment.subject
-        );
-        const isLab = subjectConfig?.isLab || false;
+    // --- Step 2: Flatten all assignments ---
+    const assignments = [];
+    group.classes.forEach((cls) => {
+      cls.subjectsAssigned.forEach((sub) => {
+        if (!sub.teacher || !sub.periods) return;
 
-        let teacherList = Array.isArray(assignment.teacher)
-          ? assignment.teacher
-          : [assignment.teacher];
+        const teachers = Array.isArray(sub.teacher)
+          ? sub.teacher
+          : [sub.teacher];
 
-        for (let i = 0; i < assignment.periods; i++) {
-          const teacher = teacherList[i % teacherList.length]; // Round-robin
-          allAssignments.push({
-            class: classEntry.name,
-            subject: assignment.subject,
-            teacher,
-            isLab,
+        for (let i = 0; i < sub.periods; i++) {
+          assignments.push({
+            class: cls.name,
+            subject: sub.subject,
+            teacher: teachers[i % teachers.length],
+            isLab:
+              group.subjects.find((s) => s.abbreviation === sub.subject)
+                ?.isLab || false,
           });
         }
       });
     });
 
-    const totalAssignments = allAssignments.length;
+    const totalAssignments = assignments.length;
     const attempts = 30;
 
-    // --- Step 4: Try Multiple Schedules ---
+    // --- Step 3: Timetable generation ---
     for (let attempt = 0; attempt < attempts; attempt++) {
-      let masterTimetable = {};
-      group.classes.forEach((classEntry) => {
-        masterTimetable[classEntry.name] = days.map((day) => ({
+      const timetable = {};
+
+      // Initialize empty timetable structure
+      group.classes.forEach((cls) => {
+        timetable[cls.name] = days.map((day) => ({
           day,
           slots: Array(maxPeriods)
             .fill(null)
@@ -113,54 +118,48 @@ exports.generateTimetable = async (req, res) => {
               subject: null,
               teacher: null,
               room: null,
+              isLab: false,
             })),
         }));
       });
 
-      let teacherOccupancy = {};
-      for (const day of days) {
-        for (let period = 1; period <= maxPeriods; period++) {
-          teacherOccupancy[`${day}-${period}`] = new Set();
+      const teacherOccupancy = {};
+      days.forEach((day) => {
+        for (let p = 1; p <= maxPeriods; p++) {
+          teacherOccupancy[`${day}-${p}`] = new Set();
         }
-      }
+      });
 
-      const assignmentsToSchedule = [...allAssignments].sort(
-        () => Math.random() - 0.5
-      );
-      let scheduledCount = 0;
+      let scheduled = 0;
 
-      for (const assignment of assignmentsToSchedule) {
+      // Shuffle assignments randomly
+      const shuffled = [...assignments].sort(() => Math.random() - 0.5);
+
+      for (const assign of shuffled) {
+        const cls = group.classes.find((c) => c.name === assign.class);
         let placed = false;
-        for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
-          const day = days[dayIndex];
-          const classEntry = group.classes.find(
-            (c) => c.name === assignment.class
-          );
 
-          const dailyPeriods = classEntry.periodsPerDay[day];
+        for (let d = 0; d < days.length; d++) {
+          const day = days[d];
+          const dailyPeriods = cls.periodsPerDay[day] || 0;
           if (dailyPeriods === 0) continue;
 
-          for (let periodIndex = 0; periodIndex < dailyPeriods; periodIndex++) {
-            const period = periodIndex + 1;
+          for (let p = 0; p < dailyPeriods; p++) {
+            const slot = timetable[cls.name][d].slots[p];
 
-            const isTeacherBusy = teacherOccupancy[`${day}-${period}`].has(
-              assignment.teacher
-            );
-            const isSlotOccupied =
-              masterTimetable[classEntry.name][dayIndex].slots[periodIndex]
-                .subject !== null;
-
-            if (!isTeacherBusy && !isSlotOccupied) {
-              const slot =
-                masterTimetable[classEntry.name][dayIndex].slots[periodIndex];
-              slot.subject = assignment.subject;
-              slot.teacher = assignment.teacher;
-              slot.room = assignment.isLab
+            if (
+              !slot.subject &&
+              !teacherOccupancy[`${day}-${p + 1}`].has(assign.teacher)
+            ) {
+              slot.subject = assign.subject;
+              slot.teacher = assign.teacher;
+              slot.room = assign.isLab
                 ? rooms.find((r) => r.includes("LAB")) || "LAB"
                 : rooms.find((r) => !r.includes("LAB")) || "N/A";
+              slot.isLab = assign.isLab;
 
-              teacherOccupancy[`${day}-${period}`].add(assignment.teacher);
-              scheduledCount++;
+              teacherOccupancy[`${day}-${p + 1}`].add(assign.teacher);
+              scheduled++;
               placed = true;
               break;
             }
@@ -168,33 +167,30 @@ exports.generateTimetable = async (req, res) => {
           if (placed) break;
         }
 
+        // fallback if not placed
         if (!placed) {
-          // fallback: mark unassigned
-          const fallbackDay = days[0];
-          masterTimetable[assignment.class][0].slots[0] = {
+          timetable[cls.name][0].slots[0] = {
             period: 1,
-            subject: assignment.subject,
+            subject: assign.subject,
             teacher: "Unassigned",
             room: "N/A",
+            isLab: assign.isLab,
           };
         }
       }
 
-      if (scheduledCount === totalAssignments) {
-        group.timetable = masterTimetable;
+      if (scheduled === totalAssignments) {
+        group.timetable = timetable;
         await group.save();
-        return res.json({
-          message: "Timetable generated successfully ✅",
-          timetable: masterTimetable,
-        });
+        return res.json({ message: "Timetable generated ✅", timetable });
       }
     }
 
     throw new Error(
-      `Generation Failure: Could not find a valid timetable after ${attempts} attempts. This could be due to a scheduling conflict.`
+      `Could not generate a valid timetable after ${attempts} attempts.`
     );
   } catch (err) {
-    console.error("Error generating timetable:", err);
+    console.error("Timetable generation error:", err);
     res
       .status(500)
       .json({ message: err.message || "Error generating timetable" });
@@ -204,20 +200,18 @@ exports.generateTimetable = async (req, res) => {
 exports.updateTimetable = async (req, res) => {
   try {
     const { timetable } = req.body;
-
-    if (!timetable) {
-      return res.status(400).json({ message: "Timetable data is required." });
-    }
+    if (!timetable)
+      return res.status(400).json({ message: "Timetable is required." });
 
     req.group.timetable = timetable;
     await req.group.save();
 
     res.json({
-      message: "Timetable updated successfully.",
+      message: "Timetable updated ✅",
       timetable: req.group.timetable,
     });
   } catch (err) {
     console.error("Error updating timetable:", err);
-    res.status(500).json({ message: "Error updating timetable." });
+    res.status(500).json({ message: "Error updating timetable" });
   }
 };

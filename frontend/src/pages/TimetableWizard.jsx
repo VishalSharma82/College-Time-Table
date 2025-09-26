@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 
@@ -111,6 +111,24 @@ export default function TimetableWizard() {
     periodsPerDay: { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 },
     subjectsAssigned: [],
   });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await api.get(`/groups/${groupId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        // Ye tumhare step 3 me auto-fill ke liye subjects aur teachers set karega
+        setSubjects(res.data.subjects || []);
+        setTeachers(res.data.teachers || []);
+      } catch (err) {
+        console.error("Failed to fetch group data:", err);
+        setError("Failed to load subjects and teachers from group.");
+      }
+    };
+    fetchData();
+  }, [groupId]);
 
   const handleAddSubject = () => {
     if (
@@ -231,10 +249,35 @@ export default function TimetableWizard() {
 
   const handleGenerate = async () => {
     setError(null);
+
+    // Step 0: Basic validation
     const validationError = validateInputs();
     if (validationError) {
       setError(validationError);
       return;
+    }
+
+    // Step 1: Extra validation for subjectsAssigned
+    for (const cls of classes) {
+      if (!cls.subjectsAssigned || cls.subjectsAssigned.length === 0) {
+        setError(`Class '${cls.name}' has no subjects assigned.`);
+        return;
+      }
+      for (const assignment of cls.subjectsAssigned) {
+        if (
+          !assignment.teacher ||
+          !assignment.periods ||
+          assignment.periods <= 0
+        ) {
+          const subjectName =
+            subjects.find((s) => s.abbreviation === assignment.subject)?.name ||
+            assignment.subject;
+          setError(
+            `In class '${cls.name}', subject '${subjectName}' must have a teacher assigned and at least 1 period.`
+          );
+          return;
+        }
+      }
     }
 
     setLoading(true);
@@ -242,11 +285,14 @@ export default function TimetableWizard() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("User not authenticated.");
 
+      // Step 2: Send configuration first
       const configData = { subjects, teachers, classes };
+      console.log("Config Data Sent:", configData); // Debug log
       await api.post(`/groups/${groupId}/configure-timetable`, configData, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      // Step 3: Generate timetable
       const res = await api.post(
         `/groups/${groupId}/generate-timetable`,
         {},
@@ -466,7 +512,10 @@ export default function TimetableWizard() {
                             ...newClass,
                             periodsPerDay: {
                               ...newClass.periodsPerDay,
-                              [day]: Math.max(0, newClass.periodsPerDay[day] - 1),
+                              [day]: Math.max(
+                                0,
+                                newClass.periodsPerDay[day] - 1
+                              ),
                             },
                           })
                         }
@@ -620,7 +669,7 @@ export default function TimetableWizard() {
                           </div>
                           <select
                             className="w-full p-2 border rounded-lg"
-                            value={teacher}
+                            value={teacher || ""}
                             onChange={(e) =>
                               handleUpdateSubjectAssignment(
                                 sub.abbreviation,

@@ -12,8 +12,8 @@ const isGroupOwner = async (req, res, next) => {
     console.log("🔹 Logged in user:", req.user);
     console.log("🔹 Group owner:", group.owner.toString());
 
-    // Compare properly
-    if (group.owner.toString() !== req.user._id.toString()) {
+    // ✅ Compare with req.user.id instead of req.user._id
+    if (group.owner.toString() !== req.user.id) {
       console.log("❌ User is not authorized (not the group owner)");
       return res
         .status(403)

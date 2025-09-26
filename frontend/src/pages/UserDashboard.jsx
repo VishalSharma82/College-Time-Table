@@ -7,6 +7,7 @@ export default function UserDashboard({ user }) {
   const [joinedGroups, setJoinedGroups] = useState([]);
   const [joinForm, setJoinForm] = useState({ groupId: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [expandedGroupId, setExpandedGroupId] = useState(null);
 
   useEffect(() => {
     fetchVisible();
@@ -74,7 +75,7 @@ export default function UserDashboard({ user }) {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold mb-4">Welcome {user.name}</h1>
 
       {/* Visible Resources */}
@@ -82,14 +83,14 @@ export default function UserDashboard({ user }) {
       {visibleResources.length === 0 ? (
         <p>No resources available</p>
       ) : (
-        <ul>
+        <ul className="list-disc list-inside">
           {visibleResources.map((r) => (
             <li key={r._id}>{r.title}</li>
           ))}
         </ul>
       )}
 
-      {/* Available Groups to Join */}
+      {/* Available Groups */}
       <h2 className="text-lg font-semibold mt-6 mb-2">Join a Group</h2>
       {availableGroups.length === 0 ? (
         <p>No groups available to join</p>
@@ -130,41 +131,87 @@ export default function UserDashboard({ user }) {
         </div>
       )}
 
-      {/* Joined Groups + Teacher View */}
+      {/* Joined Groups + Timetable */}
       <h2 className="text-lg font-semibold mt-6 mb-2">Your Groups</h2>
       {joinedGroups.length === 0 ? (
         <p>You haven't joined any groups yet</p>
       ) : (
         joinedGroups.map((g) => (
-          <div key={g._id} className="mb-4 p-3 border rounded">
-            <h3 className="font-semibold">{g.name}</h3>
-            <p>Owner: {g.owner?.name}</p>
+          <div
+            key={g._id}
+            className="mb-6 p-3 border rounded-lg bg-gray-50 shadow-sm"
+          >
+            <div className="flex justify-between items-center mb-2">
+              <div>
+                <h3 className="font-semibold">{g.name}</h3>
+                <p className="text-sm text-gray-600">Owner: {g.owner?.name}</p>
+              </div>
+              {g.timetable && (
+                <button
+                  onClick={() =>
+                    setExpandedGroupId(expandedGroupId === g._id ? null : g._id)
+                  }
+                  className="bg-indigo-600 text-white px-3 py-1 rounded"
+                >
+                  {expandedGroupId === g._id ? "Hide Timetable" : "View Timetable"}
+                </button>
+              )}
+            </div>
 
-            {g.timetable?.length ? (
-              <table className="border-collapse border w-full text-sm mt-2">
-                <thead>
-                  <tr>
-                    {Object.keys(g.timetable[0]).map((day, i) => (
-                      <th key={i} className="border px-2 py-1">
-                        {day}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {g.timetable.map((row, i) => (
-                    <tr key={i}>
-                      {Object.values(row).map((cell, j) => (
-                        <td key={j} className="border px-2 py-1">
-                          {cell || "-"}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p className="text-gray-500 mt-1">No timetable generated yet</p>
+            {expandedGroupId === g._id && g.timetable && (
+              <div className="overflow-x-auto mt-4">
+                {Object.keys(g.timetable).map((className) => {
+                  const schedule = g.timetable[className];
+                  if (!schedule || !Array.isArray(schedule)) return null;
+
+                  const days = schedule.map((d) => d.day || "-");
+
+                  return (
+                    <div key={className} className="mb-6">
+                      <h4 className="font-medium mb-2">{className}</h4>
+                      <table className="min-w-full border border-gray-300 text-sm text-center">
+                        <thead>
+                          <tr className="bg-gray-200">
+                            <th className="border px-2 py-1">Period</th>
+                            {days.map((day) => (
+                              <th key={day} className="border px-2 py-1">
+                                {day}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Array.from({
+                            length: schedule[0]?.slots?.length || 0,
+                          }).map((_, periodIndex) => (
+                            <tr key={periodIndex} className="hover:bg-gray-50">
+                              <td className="border px-2 py-1 font-semibold">
+                                {periodIndex + 1}
+                              </td>
+                              {schedule.map((dayObj) => {
+                                const slot = dayObj.slots?.[periodIndex] || {};
+                                return (
+                                  <td
+                                    key={dayObj.day}
+                                    className="border px-2 py-1"
+                                  >
+                                    <div className="font-semibold">
+                                      {slot.subject || "Free"}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {slot.teacher || "-"} | {slot.room || "-"}
+                                    </div>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         ))

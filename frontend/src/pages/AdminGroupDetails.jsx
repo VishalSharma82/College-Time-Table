@@ -102,8 +102,8 @@ export default function AdminGroupDetails({ user: initialUser }) {
     }
   };
 
-  const onDragEnd = (result) => {
-    const { source, destination } = result;
+  // ✅ Clean drag & drop (reorder)
+  const onDragEnd = ({ source, destination }) => {
     if (!destination) return;
 
     const sourceDayIndex = timetable.findIndex(
@@ -113,24 +113,9 @@ export default function AdminGroupDetails({ user: initialUser }) {
       (d) => d.day === destination.droppableId
     );
 
-    const newTimetable = Array.from(timetable);
-    const [removedSlot] = newTimetable[sourceDayIndex].slots.splice(
-      source.index,
-      1,
-      {
-        period: newTimetable[sourceDayIndex].slots[source.index].period,
-        subject: "Free",
-        teacher: "N/A",
-        room: "N/A",
-      }
-    );
-
-    const [destinationSlot] = newTimetable[destDayIndex].slots.splice(
-      destination.index,
-      1,
-      removedSlot
-    );
-    newTimetable[sourceDayIndex].slots[source.index] = destinationSlot;
+    const newTimetable = [...timetable];
+    const [moved] = newTimetable[sourceDayIndex].slots.splice(source.index, 1);
+    newTimetable[destDayIndex].slots.splice(destination.index, 0, moved);
 
     setTimetable(newTimetable);
   };
@@ -139,24 +124,12 @@ export default function AdminGroupDetails({ user: initialUser }) {
   const handleAddSubject = async () => {
     try {
       const token = localStorage.getItem("token");
-      console.log("🔹 New subject being added:", newSubject); // 👈 Debug log
-      console.log("🔹 Sending token:", token); // 👈 Debug log
-
       const res = await api.post(`/groups/${id}/subjects`, newSubject, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      console.log("✅ Server response:", res.data); // 👈 Debug log
-
       setGroup({ ...group, subjects: res.data.subjects });
-
-      setNewSubject({
-        name: "",
-        abbreviation: "",
-        isLab: false,
-      });
+      setNewSubject({ name: "", abbreviation: "", isLab: false });
     } catch (err) {
-      console.error("❌ Error response:", err.response?.data || err.message); // 👈 Debug log
       alert(err.response?.data?.message || "Error adding subject.");
     }
   };
@@ -188,7 +161,7 @@ export default function AdminGroupDetails({ user: initialUser }) {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      setGroup({ ...group, subjects: res.data.subjects });
+      setGroup({ ...group, teachers: res.data.teachers }); // ✅ FIXED
       setNewTeacher({ name: "", subjects: "" });
     } catch (err) {
       alert(err.response?.data?.message || "Error adding teacher.");
@@ -202,7 +175,7 @@ export default function AdminGroupDetails({ user: initialUser }) {
       const res = await api.delete(`/groups/${id}/teachers/${teacherId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setGroup({ ...group, subjects: res.data.subjects });
+      setGroup({ ...group, teachers: res.data.teachers }); // ✅ FIXED
     } catch (err) {
       alert(err.response?.data?.message || "Error deleting teacher.");
     }
@@ -312,8 +285,8 @@ export default function AdminGroupDetails({ user: initialUser }) {
                 className="flex justify-between items-center border p-2 rounded"
               >
                 <span>
-                  {subj.name} ({subj.abbreviation}) - {} periods{" "}
-                  {subj.isLab ? "[Lab]" : ""}
+                  {subj.name} ({subj.abbreviation})
+                  {subj.isLab ? " [Lab]" : ""}
                 </span>
                 <button
                   onClick={() => handleDeleteSubject(subj._id)}
@@ -404,7 +377,7 @@ export default function AdminGroupDetails({ user: initialUser }) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {timetable.map((day, dayIndex) => (
+                {timetable.map((day) => (
                   <tr key={day.day}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {day.day}
@@ -418,7 +391,7 @@ export default function AdminGroupDetails({ user: initialUser }) {
                         >
                           {day.slots.map((slot, slotIndex) => (
                             <Draggable
-                              key={slotIndex}
+                              key={`${day.day}-${slotIndex}`}
                               draggableId={`${day.day}-${slotIndex}`}
                               index={slotIndex}
                             >
