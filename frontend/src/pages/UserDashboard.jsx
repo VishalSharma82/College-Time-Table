@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../api/axios";
+import TimetableDisplay from "../components/TimetableDisplay";
 
 export default function UserDashboard({ user }) {
   const [visibleResources, setVisibleResources] = useState([]);

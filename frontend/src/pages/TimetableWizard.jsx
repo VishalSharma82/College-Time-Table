@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axios";
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
 // Reusable UI components for a modern look
 const InputCard = ({ children }) => (
@@ -37,32 +38,49 @@ const ProgressBar = ({ step, totalSteps }) => (
     </div>
   </div>
 );
-const ItemList = ({ items, renderItem, onDelete }) => (
+
+const ItemList = ({ items, renderItem, onDelete, onEdit }) => (
   <div className="space-y-4">
     {items.map((item, index) => (
       <div
         key={index}
         className="flex items-center justify-between p-4 bg-gray-100 rounded-lg shadow-sm border border-gray-200"
       >
-        {/* Pass both item and index to renderItem */}
-        <div className="flex-1">{renderItem(item, index)}</div>
-        <button
-          onClick={() => onDelete(index)}
-          className="text-red-500 hover:text-red-700 transition-colors"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            viewBox="0 0 20 20"
-            fill="currentColor"
+        <div className="flex-1">{renderItem(item)}</div>
+        <div className="flex gap-2">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(index)}
+              className="p-2 text-yellow-500 hover:text-yellow-600 transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={() => onDelete(index)}
+            className="p-2 text-red-500 hover:text-red-700 transition-colors"
           >
-            <path
-              fillRule="evenodd"
-              d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 012 0v6a1 1 0 11-2 0V8z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 012 0v6a1 1 0 11-2 0V8z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     ))}
   </div>
@@ -113,6 +131,8 @@ export default function TimetableWizard() {
   });
   const [editingClassIndex, setEditingClassIndex] = useState(null);
 
+  const [generatedTimetable, setGeneratedTimetable] = useState(null);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -120,12 +140,12 @@ export default function TimetableWizard() {
         const res = await api.get(`/groups/${groupId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        // Ye tumhare step 3 me auto-fill ke liye subjects aur teachers set karega
         setSubjects(res.data.subjects || []);
         setTeachers(res.data.teachers || []);
+        setClasses(res.data.classes || []);
       } catch (err) {
         console.error("Failed to fetch group data:", err);
-        setError("Failed to load subjects and teachers from group.");
+        setError("Failed to load subjects, teachers, and classes from group.");
       }
     };
     fetchData();
@@ -164,18 +184,17 @@ export default function TimetableWizard() {
   };
 
   const handleAddClass = () => {
-    if (!newClass.name.trim()) return; // class name blank to skip
+    if (!newClass.name.trim()) return;
 
     if (editingClassIndex !== null) {
       const updatedClasses = [...classes];
-      updatedClasses[editingClassIndex] = { ...newClass }; // clone
+      updatedClasses[editingClassIndex] = { ...newClass };
       setClasses(updatedClasses);
       setEditingClassIndex(null);
     } else {
-      setClasses([...classes, { ...newClass }]); // clone
+      setClasses([...classes, { ...newClass }]);
     }
 
-    // Reset form after add/update
     setNewClass({
       name: "",
       periodsPerDay: { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 },
@@ -274,37 +293,12 @@ export default function TimetableWizard() {
     return null;
   };
 
-  const handleGenerate = async () => {
+  const handlePreviewTimetable = async () => {
     setError(null);
-
-    // Step 0: Basic validation
     const validationError = validateInputs();
     if (validationError) {
       setError(validationError);
       return;
-    }
-
-    // Step 1: Extra validation for subjectsAssigned
-    for (const cls of classes) {
-      if (!cls.subjectsAssigned || cls.subjectsAssigned.length === 0) {
-        setError(`Class '${cls.name}' has no subjects assigned.`);
-        return;
-      }
-      for (const assignment of cls.subjectsAssigned) {
-        if (
-          !assignment.teacher ||
-          !assignment.periods ||
-          assignment.periods <= 0
-        ) {
-          const subjectName =
-            subjects.find((s) => s.abbreviation === assignment.subject)?.name ||
-            assignment.subject;
-          setError(
-            `In class '${cls.name}', subject '${subjectName}' must have a teacher assigned and at least 1 period.`
-          );
-          return;
-        }
-      }
     }
 
     setLoading(true);
@@ -312,14 +306,11 @@ export default function TimetableWizard() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("User not authenticated.");
 
-      // Step 2: Send configuration first
       const configData = { subjects, teachers, classes };
-      console.log("Config Data Sent:", configData); // Debug log
       await api.post(`/groups/${groupId}/configure-timetable`, configData, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Step 3: Generate timetable
       const res = await api.post(
         `/groups/${groupId}/generate-timetable`,
         {},
@@ -328,9 +319,9 @@ export default function TimetableWizard() {
         }
       );
 
-      alert("Timetable generated successfully!");
-      console.log("Generated Timetable:", res.data.timetable);
-      navigate(`/groups/${groupId}`);
+      setGeneratedTimetable(res.data.timetable);
+      setLoading(false);
+      setStep(4);
     } catch (err) {
       console.error(
         "Error during generation:",
@@ -340,9 +331,68 @@ export default function TimetableWizard() {
         err.response?.data?.message ||
           "Failed to generate timetable. Please check your inputs."
       );
+      setLoading(false);
+    }
+  };
+
+  const handleSaveFinalTimetable = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("User not authenticated.");
+
+      await api.patch(
+        `/groups/${groupId}/timetable`,
+        { timetable: generatedTimetable },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      alert("Timetable saved successfully!");
+      navigate(`/admin/groups/${groupId}`);
+    } catch (err) {
+      console.error(
+        "Error saving final timetable:",
+        err.response?.data || err.message
+      );
+      setError(
+        err.response?.data?.message || "Failed to save final timetable."
+      );
     } finally {
       setLoading(false);
     }
+  };
+
+  const onDragEnd = (result) => {
+    if (!result.destination) {
+      return;
+    }
+
+    const newTimetable = [...generatedTimetable];
+    const sourceDay = newTimetable.find(
+      (d) => d.day === result.source.droppableId
+    );
+    const destinationDay = newTimetable.find(
+      (d) => d.day === result.destination.droppableId
+    );
+
+    if (!sourceDay || !destinationDay) return;
+
+    const [removedSlot] = sourceDay.slots.splice(result.source.index, 1, {
+      period: sourceDay.slots[result.source.index].period,
+      subject: "Free",
+      teacher: "N/A",
+      room: "N/A",
+    });
+
+    const [destinationSlot] = destinationDay.slots.splice(
+      result.destination.index,
+      1,
+      removedSlot
+    );
+    sourceDay.slots[result.source.index] = destinationSlot;
+
+    setGeneratedTimetable(newTimetable);
   };
 
   const renderStep = () => {
@@ -440,18 +490,21 @@ export default function TimetableWizard() {
                       <input
                         type="checkbox"
                         id={sub.abbreviation}
-                        checked={newTeacher.subjects.includes(sub.name)}
+                        checked={newTeacher.subjects.includes(sub.abbreviation)}
                         onChange={(e) => {
                           if (e.target.checked) {
                             setNewTeacher({
                               ...newTeacher,
-                              subjects: [...newTeacher.subjects, sub.name],
+                              subjects: [
+                                ...newTeacher.subjects,
+                                sub.abbreviation,
+                              ],
                             });
                           } else {
                             setNewTeacher({
                               ...newTeacher,
                               subjects: newTeacher.subjects.filter(
-                                (s) => s !== sub.name
+                                (s) => s !== sub.abbreviation
                               ),
                             });
                           }
@@ -605,8 +658,11 @@ export default function TimetableWizard() {
                   );
                   const periods = assignment ? assignment.periods : 0;
                   const teacher = assignment ? assignment.teacher : "";
-                  const availableTeachers = teachers.filter((t) =>
-                    t.subjects.includes(sub.name)
+                  // TimetableWizard.jsx - part of renderStep() case 3
+                  const availableTeachers = teachers.filter(
+                    (t) =>
+                      t.subjects.includes(sub.name) ||
+                      t.subjects.includes(sub.abbreviation)
                   );
 
                   return (
@@ -693,7 +749,7 @@ export default function TimetableWizard() {
                           </div>
                           <select
                             className="w-full p-2 border rounded-lg"
-                            value={teacher || ""}
+                            value={teacher}
                             onChange={(e) =>
                               handleUpdateSubjectAssignment(
                                 sub.abbreviation,
@@ -720,25 +776,13 @@ export default function TimetableWizard() {
                 {editingClassIndex !== null ? "Update Class" : "Add Class"}
               </ActionButton>
             </div>
+
             <ItemList
               items={classes}
               onDelete={handleDeleteClass}
-              renderItem={(cls, index) => (
-                <div className="flex justify-between items-center w-full">
-                  <span className="font-medium text-gray-900">{cls.name}</span>
-                  <div className="flex gap-2">
-                    <ActionButton
-                      onClick={() => handleEditClass(index)}
-                      className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-1"
-                    >
-                      Edit
-                    </ActionButton>
-
-                    <ActionButton
-                      onClick={() => handleDeleteClass(index)}
-                    ></ActionButton>
-                  </div>
-                </div>
+              onEdit={handleEditClass}
+              renderItem={(cls) => (
+                <span className="font-medium text-gray-900">{cls.name}</span>
               )}
             />
 
@@ -763,42 +807,126 @@ export default function TimetableWizard() {
           <InputCard>
             <SectionTitle>Review & Generate</SectionTitle>
             <div className="space-y-6">
-              <div className="bg-gray-100 p-6 rounded-lg">
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                  Summary
-                </h3>
-                <p>
-                  <strong>Subjects:</strong> {subjects.length}
-                </p>
-                <p>
-                  <strong>Teachers:</strong> {teachers.length}
-                </p>
-                <p>
-                  <strong>Classes:</strong> {classes.length}
-                </p>
-              </div>
+              {generatedTimetable ? (
+                <>
+                  <div className="p-6 bg-gray-100 rounded-lg shadow-inner">
+                    <h3 className="font-semibold text-xl mb-4">
+                      Timetable Preview
+                    </h3>
+                    {/* Display the generated timetable here */}
+                    <DragDropContext onDragEnd={onDragEnd}>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Day
+                              </th>
+                              {generatedTimetable[0]?.slots.map((_, i) => (
+                                <th
+                                  key={i}
+                                  className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                >
+                                  Period {i + 1}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {Object.values(generatedTimetable)[0]?.map((day) => (
+                              <tr key={day.day}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  {day.day}
+                                </td>
+                                <Droppable droppableId={day.day} direction="horizontal">
+                                  {(provided) => (
+                                    <td
+                                      ref={provided.innerRef}
+                                      {...provided.droppableProps}
+                                      className="flex"
+                                    >
+                                      {day.slots.map((slot, slotIndex) => (
+                                        <Draggable
+                                          key={`${day.day}-${slotIndex}`}
+                                          draggableId={`${day.day}-${slotIndex}`}
+                                          index={slotIndex}
+                                        >
+                                          {(provided, snapshot) => (
+                                            <div
+                                              ref={provided.innerRef}
+                                              {...provided.draggableProps}
+                                              {...provided.dragHandleProps}
+                                              className={`p-4 m-2 text-center rounded-lg shadow-sm border border-gray-200 ${
+                                                snapshot.isDragging ? "bg-indigo-100" : "bg-gray-100"
+                                              } min-w-[120px]`}
+                                            >
+                                              <p className="font-semibold text-gray-700">
+                                                {slot.subject || "Free"}
+                                              </p>
+                                              <p className="text-xs text-gray-500 mt-1">
+                                                {slot.teacher || "N/A"}
+                                              </p>
+                                            </div>
+                                          )}
+                                        </Draggable>
+                                      ))}
+                                      {provided.placeholder}
+                                    </td>
+                                  )}
+                                </Droppable>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </DragDropContext>
+                  </div>
+                  <div className="flex justify-between mt-8">
+                    <ActionButton onClick={() => setStep(3)} className="bg-gray-500 text-white">
+                      Back
+                    </ActionButton>
+                    <ActionButton onClick={handleSaveFinalTimetable} loading={loading}>
+                      Save Timetable
+                    </ActionButton>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-gray-100 p-6 rounded-lg">
+                    <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                      Summary
+                    </h3>
+                    <p>
+                      <strong>Subjects:</strong> {subjects.length}
+                    </p>
+                    <p>
+                      <strong>Teachers:</strong> {teachers.length}
+                    </p>
+                    <p>
+                      <strong>Classes:</strong> {classes.length}
+                    </p>
+                  </div>
 
-              {error && (
-                <div
-                  className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative"
-                  role="alert"
-                >
-                  <strong className="font-bold">Error! </strong>
-                  <span className="block sm:inline">{error}</span>
-                </div>
+                  {error && (
+                    <div
+                      className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6"
+                      role="alert"
+                    >
+                      <strong className="font-bold">Error! </strong>
+                      <span className="block sm:inline">{error}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between mt-8">
+                    <ActionButton onClick={() => setStep(3)} className="bg-gray-500 text-white">
+                      Back
+                    </ActionButton>
+                    <ActionButton onClick={handlePreviewTimetable} loading={loading}>
+                      Generate Timetable
+                    </ActionButton>
+                  </div>
+                </>
               )}
-
-              <div className="flex justify-between mt-8">
-                <ActionButton
-                  onClick={() => setStep(3)}
-                  className="bg-gray-500 text-white"
-                >
-                  Back
-                </ActionButton>
-                <ActionButton onClick={handleGenerate} loading={loading}>
-                  Generate Timetable
-                </ActionButton>
-              </div>
             </div>
           </InputCard>
         );

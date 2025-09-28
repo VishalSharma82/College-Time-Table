@@ -163,6 +163,7 @@ router.get("/:id", auth, requireRole("admin"), async (req, res) => {
         .json({ message: "You do not have permission to view this group" });
     }
 
+    // ✅ FIXED: Return all data including structured subjects, teachers, and classes
     res.json(group);
   } catch (err) {
     console.error("Error fetching group by ID:", err);
