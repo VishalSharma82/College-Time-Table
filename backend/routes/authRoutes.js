@@ -16,18 +16,15 @@ router.post("/register", async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
-    if (!name || !email || !password || !role) {
+    if (!name || !email || !password || !role)
       return res.status(400).json({ message: "All fields are required" });
-    }
 
-    if (!["admin", "student", "faculty"].includes(role)) {
+    if (!["admin", "student", "faculty"].includes(role))
       return res.status(400).json({ message: "Invalid role selected" });
-    }
 
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    if (existingUser)
       return res.status(400).json({ message: "User already exists" });
-    }
 
     const newUser = new User({ name, email, password, role });
     await newUser.save();
@@ -43,10 +40,8 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
+    if (!email || !password)
       return res.status(400).json({ message: "Email and password required" });
-    }
 
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "Invalid credentials" });
@@ -75,7 +70,6 @@ router.post("/login", async (req, res) => {
 // -------------------- GET CURRENT USER --------------------
 router.get("/me", authMiddleware, async (req, res) => {
   try {
-    // authMiddleware attaches user to req
     const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -86,6 +80,7 @@ router.get("/me", authMiddleware, async (req, res) => {
   }
 });
 
+// -------------------- TEST ROUTE --------------------
 router.get("/test", (req, res) => {
   res.json({ message: "Backend is reachable!" });
 });

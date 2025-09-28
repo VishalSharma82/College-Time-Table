@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 
 export default function AdminDashboard({ user }) {
-  const [joinedGroups, setJoinedGroups] = useState([]);
+  const [myGroups, setMyGroups] = useState([]);
   const [showGroupForm, setShowGroupForm] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
   const [groupName, setGroupName] = useState("");
@@ -13,16 +13,17 @@ export default function AdminDashboard({ user }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchJoinedGroups();
+    fetchMyGroups();
     // eslint-disable-next-line
   }, []);
 
-  async function fetchJoinedGroups() {
+  // Fetch admin-owned groups
+  async function fetchMyGroups() {
     try {
       const res = await api.get("/groups/mine", {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
-      setJoinedGroups(res.data);
+      setMyGroups(res.data);
     } catch (err) {
       console.error("Failed to fetch groups:", err);
     }
@@ -54,7 +55,7 @@ export default function AdminDashboard({ user }) {
       setGroupName("");
       setGroupPassword("");
       setShowGroupForm(false);
-      fetchJoinedGroups();
+      fetchMyGroups();
     } catch (err) {
       alert(err.response?.data?.message || "Error saving group");
     } finally {
@@ -77,19 +78,23 @@ export default function AdminDashboard({ user }) {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       alert("Group deleted successfully");
-      fetchJoinedGroups();
+      fetchMyGroups();
     } catch (err) {
       alert(err.response?.data?.message || "Error deleting group");
     }
   };
 
-  const handleView = (group) => {
-    // Only owner can view
-    if (group.owner?._id !== user._id) {
-      alert("You do not have permission to view this group");
-      return;
+  const handleView = async (group) => {
+    try {
+      // Fetch detailed view from /groups/:id/view
+      const res = await api.get(`/groups/${group._id}/view`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      // Pass the group details to the group page
+      navigate(`/groups/${group._id}`, { state: { group: res.data } });
+    } catch (err) {
+      alert(err.response?.data?.message || "You do not have permission to view this group");
     }
-    navigate(`/groups/${group._id}`);
   };
 
   return (
@@ -157,11 +162,11 @@ export default function AdminDashboard({ user }) {
 
       {/* Groups List */}
       <h2 className="text-2xl font-semibold mb-4">My Groups</h2>
-      {joinedGroups.length === 0 ? (
+      {myGroups.length === 0 ? (
         <p className="text-gray-500 text-center">No groups created yet.</p>
       ) : (
         <ul className="space-y-4">
-          {joinedGroups.map((group) => (
+          {myGroups.map((group) => (
             <li
               key={group._id}
               className="flex justify-between items-center bg-white shadow-md p-4 rounded-lg hover:shadow-lg transition"
