@@ -18,44 +18,54 @@ export default function AdminDashboard({ user }) {
   }, []);
 
   // Fetch admin-owned groups
-  async function fetchMyGroups() {
+  const fetchMyGroups = async () => {
     try {
-      const res = await api.get("/groups/mine", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-      setMyGroups(res.data);
+      const { data } = await api.get("/groups/mine");
+      setMyGroups(data);
     } catch (err) {
       console.error("Failed to fetch groups:", err);
     }
-  }
+  };
 
+  // Create / Update Group
   const handleGroupSubmit = async (e) => {
     e.preventDefault();
     setLoadingGroup(true);
     try {
+      let groupData;
+
       if (editingGroup) {
         // Update existing group
-        await api.patch(
-          `/groups/${editingGroup._id}`,
-          { name: groupName, password: groupPassword },
-          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-        );
+        await api.patch(`/groups/${editingGroup._id}`, {
+          name: groupName,
+          password: groupPassword || undefined,
+        });
         alert("Group updated successfully");
+
+        // Fetch updated group details
+        const res = await api.get(`/groups/${editingGroup._id}/view`);
+        groupData = res.data;
+
         setEditingGroup(null);
       } else {
         // Create new group
-        await api.post(
-          "/groups",
-          { name: groupName, password: groupPassword },
-          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-        );
+        const resCreate = await api.post("/groups", {
+          name: groupName,
+          password: groupPassword,
+        });
         alert("Group created successfully");
+
+        // Fetch detailed view
+        const resView = await api.get(`/groups/${resCreate.data._id}/view`);
+        groupData = resView.data;
       }
 
       setGroupName("");
       setGroupPassword("");
       setShowGroupForm(false);
-      fetchMyGroups();
+
+      // Navigate directly to the group view page
+      navigate(`/groups/${groupData._id}`, { state: { group: groupData } });
     } catch (err) {
       alert(err.response?.data?.message || "Error saving group");
     } finally {
@@ -72,11 +82,8 @@ export default function AdminDashboard({ user }) {
 
   const handleDelete = async (groupId) => {
     if (!window.confirm("Are you sure you want to delete this group?")) return;
-
     try {
-      await api.delete(`/groups/${groupId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
+      await api.delete(`/groups/${groupId}`);
       alert("Group deleted successfully");
       fetchMyGroups();
     } catch (err) {
@@ -86,14 +93,13 @@ export default function AdminDashboard({ user }) {
 
   const handleView = async (group) => {
     try {
-      // Fetch detailed view from /groups/:id/view
-      const res = await api.get(`/groups/${group._id}/view`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-      // Pass the group details to the group page
-      navigate(`/groups/${group._id}`, { state: { group: res.data } });
+      const { data } = await api.get(`/groups/${group._id}/view`);
+      navigate(`/groups/${group._id}`, { state: { group: data } });
     } catch (err) {
-      alert(err.response?.data?.message || "You do not have permission to view this group");
+      alert(
+        err.response?.data?.message ||
+          "You do not have permission to view this group"
+      );
     }
   };
 

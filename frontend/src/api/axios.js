@@ -1,16 +1,14 @@
-// src/api/axios.js
-import axios from 'axios';
+import axios from "axios";
 
-const api = axios.create({
-  baseURL: 'https://college-time-table-api.onrender.com',
-  withCredentials: true,
+const API = axios.create({
+  baseURL: "https://college-time-table-api.onrender.com/api", // <-- note /api prefix
 });
 
-// request interceptor to add token
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-}, err => Promise.reject(err));
+// Add token automatically
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-export default api;
+export default API;
