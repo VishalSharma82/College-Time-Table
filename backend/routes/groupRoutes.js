@@ -17,7 +17,9 @@ router.post("/", auth, requireRole("admin"), async (req, res) => {
   try {
     const { name, description, password, isPrivate = true } = req.body;
     if (!name || !password) {
-      return res.status(400).json({ message: "Name and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Name and password are required" });
     }
 
     if (!req.user || !req.user.id) {
@@ -25,7 +27,10 @@ router.post("/", auth, requireRole("admin"), async (req, res) => {
     }
 
     const existing = await Group.findOne({ name, owner: req.user.id });
-    if (existing) return res.status(400).json({ message: "Group with that name already exists" });
+    if (existing)
+      return res
+        .status(400)
+        .json({ message: "Group with that name already exists" });
 
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -42,7 +47,12 @@ router.post("/", auth, requireRole("admin"), async (req, res) => {
     res.status(201).json(group);
   } catch (err) {
     console.error("Error creating group:", err);
-    res.status(500).json({ message: "Server error while creating group", error: err.message });
+    res
+      .status(500)
+      .json({
+        message: "Server error while creating group",
+        error: err.message,
+      });
   }
 });
 
@@ -68,7 +78,9 @@ router.post("/join", auth, async (req, res) => {
   try {
     const { groupId, password } = req.body;
     if (!groupId || !password) {
-      return res.status(400).json({ message: "Group ID and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Group ID and password are required" });
     }
     if (!mongoose.Types.ObjectId.isValid(groupId)) {
       return res.status(400).json({ message: "Invalid Group ID" });
@@ -90,7 +102,12 @@ router.post("/join", auth, async (req, res) => {
     res.json({ message: "Joined group successfully", group });
   } catch (err) {
     console.error("Error joining group:", err);
-    res.status(500).json({ message: "Server error while joining group", error: err.message });
+    res
+      .status(500)
+      .json({
+        message: "Server error while joining group",
+        error: err.message,
+      });
   }
 });
 
@@ -132,7 +149,8 @@ router.get("/joined", auth, async (req, res) => {
 router.get("/:id", auth, requireRole("admin"), async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid group ID" });
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res.status(400).json({ message: "Invalid group ID" });
 
     const group = await Group.findById(id)
       .populate("owner", "name email role")
@@ -140,13 +158,20 @@ router.get("/:id", auth, requireRole("admin"), async (req, res) => {
 
     if (!group) return res.status(404).json({ message: "Group not found" });
     if (group.owner._id.toString() !== req.user.id) {
-      return res.status(403).json({ message: "You do not have permission to view this group" });
+      return res
+        .status(403)
+        .json({ message: "You do not have permission to view this group" });
     }
 
     res.json(group);
   } catch (err) {
     console.error("Error fetching group by ID:", err);
-    res.status(500).json({ message: "Server error while fetching group", error: err.message });
+    res
+      .status(500)
+      .json({
+        message: "Server error while fetching group",
+        error: err.message,
+      });
   }
 });
 
@@ -156,11 +181,15 @@ router.get("/:id", auth, requireRole("admin"), async (req, res) => {
 router.patch("/:id", auth, requireRole("admin"), async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid group ID" });
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res.status(400).json({ message: "Invalid group ID" });
 
     const group = await Group.findById(id);
     if (!group) return res.status(404).json({ message: "Group not found" });
-    if (group.owner.toString() !== req.user.id) return res.status(403).json({ message: "Only owner can update this group" });
+    if (group.owner.toString() !== req.user.id)
+      return res
+        .status(403)
+        .json({ message: "Only owner can update this group" });
 
     const { name, description, password } = req.body;
     if (name) group.name = name;
@@ -181,17 +210,26 @@ router.patch("/:id", auth, requireRole("admin"), async (req, res) => {
 router.delete("/:id", auth, requireRole("admin"), async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid group ID" });
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res.status(400).json({ message: "Invalid group ID" });
 
     const group = await Group.findById(id);
     if (!group) return res.status(404).json({ message: "Group not found" });
-    if (group.owner.toString() !== req.user.id) return res.status(403).json({ message: "Only owner can delete this group" });
+    if (group.owner.toString() !== req.user.id)
+      return res
+        .status(403)
+        .json({ message: "Only owner can delete this group" });
 
     await group.deleteOne();
     res.json({ message: "Group deleted successfully" });
   } catch (err) {
     console.error("Error deleting group:", err);
-    res.status(500).json({ message: "Server error while deleting group", error: err.message });
+    res
+      .status(500)
+      .json({
+        message: "Server error while deleting group",
+        error: err.message,
+      });
   }
 });
 
@@ -201,7 +239,8 @@ router.delete("/:id", auth, requireRole("admin"), async (req, res) => {
 router.get("/:id/view", auth, async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid group ID" });
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res.status(400).json({ message: "Invalid group ID" });
 
     const group = await Group.findById(id)
       .populate("owner", "name email role")
@@ -209,7 +248,9 @@ router.get("/:id/view", auth, async (req, res) => {
 
     if (!group) return res.status(404).json({ message: "Group not found" });
     if (!group.members.some((m) => m._id.toString() === req.user.id)) {
-      return res.status(403).json({ message: "You are not a member of this group" });
+      return res
+        .status(403)
+        .json({ message: "You are not a member of this group" });
     }
 
     res.json({
@@ -234,78 +275,175 @@ router.get("/:id/view", auth, async (req, res) => {
  */
 
 // ADD SUBJECT
-router.post("/:id/subjects", auth, requireRole("admin"), isGroupOwner, async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid group ID" });
+router.post(
+  "/:id/subjects",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(id))
+        return res.status(400).json({ message: "Invalid group ID" });
 
-    const { name, abbreviation, isLab } = req.body;
-    if (!name || !abbreviation) return res.status(400).json({ message: "Name and Abbreviation are required" });
+      const { name, abbreviation, isLab } = req.body;
+      if (!name || !abbreviation)
+        return res
+          .status(400)
+          .json({ message: "Name and Abbreviation are required" });
 
-    const group = await Group.findById(id);
-    if (!group) return res.status(404).json({ message: "Group not found" });
+      const group = await Group.findById(id);
+      if (!group) return res.status(404).json({ message: "Group not found" });
 
-    group.subjects.push({ name, abbreviation, isLab: isLab ?? false });
-    await group.save();
+      group.subjects.push({ name, abbreviation, isLab: isLab ?? false });
+      await group.save();
 
-    res.status(201).json({ message: "Subject added successfully", subjects: group.subjects });
-  } catch (err) {
-    console.error("❌ Error adding subject:", err);
-    res.status(500).json({ message: "Server error while adding subject", error: err.message });
+      res
+        .status(201)
+        .json({
+          message: "Subject added successfully",
+          subjects: group.subjects,
+        });
+    } catch (err) {
+      console.error("❌ Error adding subject:", err);
+      res
+        .status(500)
+        .json({
+          message: "Server error while adding subject",
+          error: err.message,
+        });
+    }
   }
-});
+);
 
 // UPDATE SUBJECT
-router.put("/:id/subjects/:subjectId", auth, requireRole("admin"), isGroupOwner, async (req, res) => {
-  try {
-    const { id, subjectId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(subjectId)) {
-      return res.status(400).json({ message: "Invalid ID(s)" });
+router.put(
+  "/:id/subjects/:subjectId",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  async (req, res) => {
+    try {
+      const { id, subjectId } = req.params;
+      if (
+        !mongoose.Types.ObjectId.isValid(id) ||
+        !mongoose.Types.ObjectId.isValid(subjectId)
+      ) {
+        return res.status(400).json({ message: "Invalid ID(s)" });
+      }
+
+      const group = await Group.findById(id);
+      if (!group) return res.status(404).json({ message: "Group not found" });
+
+      const subject = group.subjects.id(subjectId);
+      if (!subject)
+        return res.status(404).json({ message: "Subject not found" });
+
+      const { name, abbreviation, isLab } = req.body;
+      if (!name && !abbreviation && isLab === undefined) {
+        return res
+          .status(400)
+          .json({ message: "At least one field required to update" });
+      }
+
+      Object.assign(subject, req.body);
+      await group.save();
+
+      res.json({ message: "Subject updated", subjects: group.subjects });
+    } catch (err) {
+      console.error("❌ Error updating subject:", err);
+      res
+        .status(500)
+        .json({
+          message: "Server error while updating subject",
+          error: err.message,
+        });
     }
-
-    const group = await Group.findById(id);
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    const subject = group.subjects.id(subjectId);
-    if (!subject) return res.status(404).json({ message: "Subject not found" });
-
-    const { name, abbreviation, isLab } = req.body;
-    if (!name && !abbreviation && isLab === undefined) {
-      return res.status(400).json({ message: "At least one field required to update" });
-    }
-
-    Object.assign(subject, req.body);
-    await group.save();
-
-    res.json({ message: "Subject updated", subjects: group.subjects });
-  } catch (err) {
-    console.error("❌ Error updating subject:", err);
-    res.status(500).json({ message: "Server error while updating subject", error: err.message });
   }
-});
+);
 
 // DELETE SUBJECT
-router.delete("/:id/subjects/:subjectId", auth, requireRole("admin"), isGroupOwner, async (req, res) => {
-  try {
-    const { id, subjectId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(subjectId)) {
-      return res.status(400).json({ message: "Invalid ID(s)" });
+router.delete(
+  "/:id/subjects/:subjectId",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  async (req, res) => {
+    try {
+      const { id, subjectId } = req.params;
+      if (
+        !mongoose.Types.ObjectId.isValid(id) ||
+        !mongoose.Types.ObjectId.isValid(subjectId)
+      ) {
+        return res.status(400).json({ message: "Invalid ID(s)" });
+      }
+
+      const group = await Group.findById(id);
+      if (!group) return res.status(404).json({ message: "Group not found" });
+
+      const initialLength = group.subjects.length;
+      group.subjects = group.subjects.filter(
+        (s) => s._id.toString() !== subjectId
+      );
+      if (group.subjects.length === initialLength)
+        return res.status(404).json({ message: "Subject not found" });
+
+      await group.save();
+      res.json({ message: "Subject deleted", subjects: group.subjects });
+    } catch (err) {
+      console.error("❌ Error deleting subject:", err);
+      res
+        .status(500)
+        .json({
+          message: "Server error while deleting subject",
+          error: err.message,
+        });
     }
-
-    const group = await Group.findById(id);
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    const initialLength = group.subjects.length;
-    group.subjects = group.subjects.filter(s => s._id.toString() !== subjectId);
-    if (group.subjects.length === initialLength) return res.status(404).json({ message: "Subject not found" });
-
-    await group.save();
-    res.json({ message: "Subject deleted", subjects: group.subjects });
-  } catch (err) {
-    console.error("❌ Error deleting subject:", err);
-    res.status(500).json({ message: "Server error while deleting subject", error: err.message });
   }
-});
+);
+// UPDATE SUBJECT
+router.put(
+  "/:id/subjects/:subjectId",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  async (req, res) => {
+    try {
+      const { id, subjectId } = req.params;
+      const { name, abbreviation, isLab } = req.body;
+
+      if (
+        !mongoose.Types.ObjectId.isValid(id) ||
+        !mongoose.Types.ObjectId.isValid(subjectId)
+      ) {
+        return res.status(400).json({ message: "Invalid ID(s)" });
+      }
+
+      const group = await Group.findById(id);
+      if (!group) return res.status(404).json({ message: "Group not found" });
+
+      const subject = group.subjects.id(subjectId);
+      if (!subject)
+        return res.status(404).json({ message: "Subject not found" });
+
+      // Update fields
+      if (name !== undefined) subject.name = name;
+      if (abbreviation !== undefined) subject.abbreviation = abbreviation;
+      if (isLab !== undefined) subject.isLab = isLab;
+
+      await group.save();
+      res.json({ message: "Subject updated", subjects: group.subjects });
+    } catch (err) {
+      console.error("❌ Error updating subject:", err);
+      res
+        .status(500)
+        .json({
+          message: "Server error while updating subject",
+          error: err.message,
+        });
+    }
+  }
+);
 
 /**
  * -------------------------
@@ -314,84 +452,140 @@ router.delete("/:id/subjects/:subjectId", auth, requireRole("admin"), isGroupOwn
  */
 
 // ADD TEACHER
-router.post("/:id/teachers", auth, requireRole("admin"), isGroupOwner, async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: "Invalid group ID" });
+router.post(
+  "/:id/teachers",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(id))
+        return res.status(400).json({ message: "Invalid group ID" });
 
-    const { name, subjects } = req.body;
-    if (!name || !Array.isArray(subjects) || subjects.length === 0) {
-      return res.status(400).json({ message: "Teacher name and subjects are required" });
+      const { name, subjects } = req.body;
+      if (!name || !Array.isArray(subjects) || subjects.length === 0) {
+        return res
+          .status(400)
+          .json({ message: "Teacher name and subjects are required" });
+      }
+
+      const group = await Group.findById(id);
+      if (!group) return res.status(404).json({ message: "Group not found" });
+
+      group.teachers.push({ name, subjects });
+      await group.save();
+
+      res
+        .status(201)
+        .json({ message: "Teacher added", teachers: group.teachers });
+    } catch (err) {
+      console.error("❌ Error adding teacher:", err);
+      res
+        .status(500)
+        .json({
+          message: "Server error while adding teacher",
+          error: err.message,
+        });
     }
-
-    const group = await Group.findById(id);
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    group.teachers.push({ name, subjects });
-    await group.save();
-
-    res.status(201).json({ message: "Teacher added", teachers: group.teachers });
-  } catch (err) {
-    console.error("❌ Error adding teacher:", err);
-    res.status(500).json({ message: "Server error while adding teacher", error: err.message });
   }
-});
+);
 
 // UPDATE TEACHER
-router.put("/:id/teachers/:teacherId", auth, requireRole("admin"), isGroupOwner, async (req, res) => {
-  try {
-    const { id, teacherId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(teacherId)) {
-      return res.status(400).json({ message: "Invalid ID(s)" });
+router.put(
+  "/:id/teachers/:teacherId",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  async (req, res) => {
+    try {
+      const { id, teacherId } = req.params;
+      if (
+        !mongoose.Types.ObjectId.isValid(id) ||
+        !mongoose.Types.ObjectId.isValid(teacherId)
+      ) {
+        return res.status(400).json({ message: "Invalid ID(s)" });
+      }
+
+      const group = await Group.findById(id);
+      if (!group) return res.status(404).json({ message: "Group not found" });
+
+      const teacher = group.teachers.id(teacherId);
+      if (!teacher)
+        return res.status(404).json({ message: "Teacher not found" });
+
+      const { name, subjects } = req.body;
+      if (!name && (!subjects || !Array.isArray(subjects))) {
+        return res
+          .status(400)
+          .json({ message: "At least one field required to update" });
+      }
+
+      Object.assign(teacher, req.body);
+      await group.save();
+
+      res.json({ message: "Teacher updated", teachers: group.teachers });
+    } catch (err) {
+      console.error("❌ Error updating teacher:", err);
+      res
+        .status(500)
+        .json({
+          message: "Server error while updating teacher",
+          error: err.message,
+        });
     }
-
-    const group = await Group.findById(id);
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    const teacher = group.teachers.id(teacherId);
-    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
-
-    const { name, subjects } = req.body;
-    if (!name && (!subjects || !Array.isArray(subjects))) {
-      return res.status(400).json({ message: "At least one field required to update" });
-    }
-
-    Object.assign(teacher, req.body);
-    await group.save();
-
-    res.json({ message: "Teacher updated", teachers: group.teachers });
-  } catch (err) {
-    console.error("❌ Error updating teacher:", err);
-    res.status(500).json({ message: "Server error while updating teacher", error: err.message });
   }
-});
+);
 
 // DELETE TEACHER
-router.delete("/:id/teachers/:teacherId", auth, requireRole("admin"), isGroupOwner, async (req, res) => {
-  try {
-    const { id, teacherId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(teacherId)) {
-      return res.status(400).json({ message: "Invalid ID(s)" });
+router.delete(
+  "/:id/teachers/:teacherId",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  async (req, res) => {
+    try {
+      const { id, teacherId } = req.params;
+      if (
+        !mongoose.Types.ObjectId.isValid(id) ||
+        !mongoose.Types.ObjectId.isValid(teacherId)
+      ) {
+        return res.status(400).json({ message: "Invalid ID(s)" });
+      }
+
+      const group = await Group.findById(id);
+      if (!group) return res.status(404).json({ message: "Group not found" });
+
+      const initialLength = group.teachers.length;
+      group.teachers = group.teachers.filter(
+        (t) => t._id.toString() !== teacherId
+      );
+      if (group.teachers.length === initialLength)
+        return res.status(404).json({ message: "Teacher not found" });
+
+      await group.save();
+      res.json({ message: "Teacher deleted", teachers: group.teachers });
+    } catch (err) {
+      console.error("❌ Error deleting teacher:", err);
+      res
+        .status(500)
+        .json({
+          message: "Server error while deleting teacher",
+          error: err.message,
+        });
     }
-
-    const group = await Group.findById(id);
-    if (!group) return res.status(404).json({ message: "Group not found" });
-
-    const initialLength = group.teachers.length;
-    group.teachers = group.teachers.filter(t => t._id.toString() !== teacherId);
-    if (group.teachers.length === initialLength) return res.status(404).json({ message: "Teacher not found" });
-
-    await group.save();
-    res.json({ message: "Teacher deleted", teachers: group.teachers });
-  } catch (err) {
-    console.error("❌ Error deleting teacher:", err);
-    res.status(500).json({ message: "Server error while deleting teacher", error: err.message });
   }
-});
+);
 
 /**
  * TIMETABLE ROUTE
  */
-router.patch("/:id/timetable", auth, requireRole("admin"), isGroupOwner, updateTimetable);
+router.patch(
+  "/:id/timetable",
+  auth,
+  requireRole("admin"),
+  isGroupOwner,
+  updateTimetable
+);
 
 module.exports = router;

@@ -37,7 +37,6 @@ const ProgressBar = ({ step, totalSteps }) => (
     </div>
   </div>
 );
-
 const ItemList = ({ items, renderItem, onDelete }) => (
   <div className="space-y-4">
     {items.map((item, index) => (
@@ -45,7 +44,8 @@ const ItemList = ({ items, renderItem, onDelete }) => (
         key={index}
         className="flex items-center justify-between p-4 bg-gray-100 rounded-lg shadow-sm border border-gray-200"
       >
-        <div className="flex-1">{renderItem(item)}</div>
+        {/* Pass both item and index to renderItem */}
+        <div className="flex-1">{renderItem(item, index)}</div>
         <button
           onClick={() => onDelete(index)}
           className="text-red-500 hover:text-red-700 transition-colors"
@@ -111,6 +111,7 @@ export default function TimetableWizard() {
     periodsPerDay: { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 },
     subjectsAssigned: [],
   });
+  const [editingClassIndex, setEditingClassIndex] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -163,20 +164,46 @@ export default function TimetableWizard() {
   };
 
   const handleAddClass = () => {
-    if (
-      newClass.name &&
-      Object.values(newClass.periodsPerDay).some((p) => p > 0)
-    ) {
-      setClasses([...classes, newClass]);
-      setNewClass({
-        name: "",
-        periodsPerDay: { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 },
-        subjectsAssigned: [],
-      });
-      setError(null);
+    if (!newClass.name.trim()) return; // class name blank to skip
+
+    if (editingClassIndex !== null) {
+      const updatedClasses = [...classes];
+      updatedClasses[editingClassIndex] = { ...newClass }; // clone
+      setClasses(updatedClasses);
+      setEditingClassIndex(null);
     } else {
-      setError("Please fill all fields for the class.");
+      setClasses([...classes, { ...newClass }]); // clone
     }
+
+    // Reset form after add/update
+    setNewClass({
+      name: "",
+      periodsPerDay: { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 },
+      subjectsAssigned: [],
+    });
+  };
+
+  const handleEditClass = (index) => {
+    const cls = classes[index];
+    if (!cls) {
+      console.error("⚠️ handleEditClass: Invalid index", index, classes);
+      return;
+    }
+
+    setNewClass({
+      name: cls.name || "",
+      periodsPerDay: cls.periodsPerDay || {
+        Mon: 0,
+        Tue: 0,
+        Wed: 0,
+        Thu: 0,
+        Fri: 0,
+      },
+      subjectsAssigned: cls.subjectsAssigned || [],
+    });
+
+    setEditingClassIndex(index);
+    setStep(3);
   };
 
   const handleDeleteSubject = (index) => {
@@ -413,21 +440,18 @@ export default function TimetableWizard() {
                       <input
                         type="checkbox"
                         id={sub.abbreviation}
-                        checked={newTeacher.subjects.includes(sub.abbreviation)}
+                        checked={newTeacher.subjects.includes(sub.name)}
                         onChange={(e) => {
                           if (e.target.checked) {
                             setNewTeacher({
                               ...newTeacher,
-                              subjects: [
-                                ...newTeacher.subjects,
-                                sub.abbreviation,
-                              ],
+                              subjects: [...newTeacher.subjects, sub.name],
                             });
                           } else {
                             setNewTeacher({
                               ...newTeacher,
                               subjects: newTeacher.subjects.filter(
-                                (s) => s !== sub.abbreviation
+                                (s) => s !== sub.name
                               ),
                             });
                           }
@@ -582,7 +606,7 @@ export default function TimetableWizard() {
                   const periods = assignment ? assignment.periods : 0;
                   const teacher = assignment ? assignment.teacher : "";
                   const availableTeachers = teachers.filter((t) =>
-                    t.subjects.includes(sub.abbreviation)
+                    t.subjects.includes(sub.name)
                   );
 
                   return (
@@ -692,14 +716,29 @@ export default function TimetableWizard() {
                 })}
               </div>
 
-              <ActionButton onClick={handleAddClass}>Add Class</ActionButton>
+              <ActionButton onClick={handleAddClass}>
+                {editingClassIndex !== null ? "Update Class" : "Add Class"}
+              </ActionButton>
             </div>
-
             <ItemList
               items={classes}
               onDelete={handleDeleteClass}
-              renderItem={(cls) => (
-                <span className="font-medium text-gray-900">{cls.name}</span>
+              renderItem={(cls, index) => (
+                <div className="flex justify-between items-center w-full">
+                  <span className="font-medium text-gray-900">{cls.name}</span>
+                  <div className="flex gap-2">
+                    <ActionButton
+                      onClick={() => handleEditClass(index)}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-1"
+                    >
+                      Edit
+                    </ActionButton>
+
+                    <ActionButton
+                      onClick={() => handleDeleteClass(index)}
+                    ></ActionButton>
+                  </div>
+                </div>
               )}
             />
 
