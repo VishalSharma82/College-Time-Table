@@ -1,22 +1,16 @@
 // src/api/axios.js
 import axios from 'axios';
 
-// const api = axios.create({
-//   baseURL: "https://college-time-table-backend.onrender.com/api",
-//   withCredentials: true, // agar cookies/session use kar rahe ho
-// });
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
-  withCredentials: true, // agar cookies/session use kar rahe ho
+  baseURL: 'https://college-time-table-api.onrender.com/api',
+  withCredentials: true,
 });
-
-
 
 // request interceptor to add token
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
 }, err => Promise.reject(err));
 
 export default api;
