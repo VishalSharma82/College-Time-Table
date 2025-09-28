@@ -86,4 +86,8 @@ router.get("/me", authMiddleware, async (req, res) => {
   }
 });
 
+router.get("/test", (req, res) => {
+  res.json({ message: "Backend is reachable!" });
+});
+
 module.exports = router;

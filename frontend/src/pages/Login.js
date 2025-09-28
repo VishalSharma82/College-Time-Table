@@ -24,9 +24,9 @@ const Login = () => {
 
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/auth/login",
+        `${process.env.REACT_APP_API_URL}/api/auth/login`,
         form,
-        { withCredentials: true } // cookies ke liye
+        { withCredentials: true } // keep if using cookies
       );
 
       localStorage.setItem("token", res.data.token);
@@ -88,7 +88,11 @@ const Login = () => {
               className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? <IoEyeOffOutline size={20} /> : <IoEyeOutline size={20} />}
+              {showPassword ? (
+                <IoEyeOffOutline size={20} />
+              ) : (
+                <IoEyeOutline size={20} />
+              )}
             </button>
           </div>
 
