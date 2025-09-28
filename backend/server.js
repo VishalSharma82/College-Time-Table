@@ -13,22 +13,28 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-// ✅ CORS setup
 const allowedOrigins = [
-  "http://localhost:3000", // local dev
-  "https://college-time-table.onrender.com", // deployed frontend
+  "https://college-timetable-system.onrender.com",
+  "http://localhost:3000" // new live frontend
 ];
 
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+  origin: function(origin, callback) {
+    // allow requests with no origin (like Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS"));
+      callback(new Error(`CORS Error: Origin ${origin} not allowed`));
     }
   },
-  credentials: true,
+  credentials: true, // allow cookies
+  methods: ["GET","POST","PUT","DELETE","OPTIONS"], // explicitly allow methods
+  allowedHeaders: ["Content-Type","Authorization"], // allow headers
 }));
+
+
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -36,16 +42,15 @@ app.use("/api/groups", groupRoutes);
 app.use("/api/resources", resourceRoutes);
 app.use("/api/groups", timetableRoutes);
 
-// ✅ Optional root route to test backend
+// Root route for testing
 app.get("/", (req, res) => {
   res.send("Backend is running!");
 });
 
 // MongoDB Connect + Start Server
-const PORT = process.env.PORT || 5000; // Use Render's port or fallback to 5000
+const PORT = process.env.PORT || 5000;
 
-mongoose
-  .connect(process.env.MONGO_URI)
+mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log("✅ MongoDB Connected");
     app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
