@@ -12,6 +12,7 @@ export default function Dashboard() {
     localStorage.removeItem("token");
     setUser(null);
     navigate("/login");
+    
   };
 
   if (!user) return <div>Loading...</div>;
