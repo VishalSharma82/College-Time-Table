@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://college-time-table-api.onrender.com/',
+  baseURL: 'https://college-time-table-api.onrender.com',
   withCredentials: true,
 });
 
