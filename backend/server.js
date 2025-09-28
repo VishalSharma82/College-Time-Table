@@ -14,8 +14,7 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-// ✅ CORS fix for credentials
-import cors from "cors";
+// ✅ CORS fix for credential
 
 const allowedOrigins = [
   "http://localhost:3000", // development ke liye

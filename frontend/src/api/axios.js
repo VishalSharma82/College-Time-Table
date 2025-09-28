@@ -1,8 +1,12 @@
 // src/api/axios.js
 import axios from 'axios';
 
+// const api = axios.create({
+//   baseURL: "https://college-time-table-backend.onrender.com/api",
+//   withCredentials: true, // agar cookies/session use kar rahe ho
+// });
 const api = axios.create({
-  baseURL: "https://college-time-table-backend.onrender.com/api",
+  baseURL: "http://localhost:5000/api",
   withCredentials: true, // agar cookies/session use kar rahe ho
 });
 
