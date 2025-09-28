@@ -9,7 +9,6 @@ export default function UserDashboard({ user }) {
   const [joinForm, setJoinForm] = useState({ groupId: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [expandedGroupId, setExpandedGroupId] = useState(null);
-
   useEffect(() => {
     fetchVisible();
     fetchAvailableGroups();
