@@ -15,10 +15,25 @@ const app = express();
 app.use(express.json());
 
 // ✅ CORS fix for credentials
+import cors from "cors";
+
+const allowedOrigins = [
+  "http://localhost:3000", // development ke liye
+  "https://college-time-table.onrender.com", // deployed frontend URL
+];
+
 app.use(cors({
-  origin: 'http://localhost:3000', // frontend ka exact origin
-  credentials: true,               // cookies ko allow karne ke liye
+  origin: function (origin, callback) {
+    // Agar request ka origin allowed list me hai ya origin undefined hai (postman/local)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
 }));
+
 
 // Routes
 app.use("/api/auth", authRoutes);
