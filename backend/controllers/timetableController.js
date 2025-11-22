@@ -54,7 +54,7 @@ exports.generateTimetable = async (req, res) => {
       throw new Error("You must define at least one class.");
     }
 
-    // --- Step 1: Validation & defaults ---
+    // --- Step 1: Validation & defaults (No change needed) ---
     for (const cls of group.classes) {
       cls.periodsPerDay = cls.periodsPerDay || {};
       days.forEach((day) => {
@@ -83,13 +83,16 @@ exports.generateTimetable = async (req, res) => {
     let allAssignments = [];
     group.classes.forEach((classEntry) => {
       classEntry.subjectsAssigned.forEach((assignment) => {
-        const isLab =
-          group.subjects.find((s) => s.abbreviation === assignment.subject)
-            ?.isLab || false;
+        const subjectDetail = group.subjects.find(
+          (s) => s.abbreviation === assignment.subject
+        );
+        const isLab = subjectDetail?.isLab || false;
+
         for (let i = 0; i < assignment.periods; i++) {
           allAssignments.push({
             class: classEntry.name,
-            subject: assignment.subject,
+            // 🚀 FIX: Assign the subject NAME instead of the abbreviation for display clarity
+            subject: subjectDetail?.name || assignment.subject, 
             teacher: assignment.teacher,
             isLab: isLab,
           });
@@ -138,6 +141,7 @@ exports.generateTimetable = async (req, res) => {
       });
 
       let scheduledCount = 0;
+      // Shuffle the assignments on every attempt
       const assignmentsToSchedule = [...allAssignments].sort(
         () => Math.random() - 0.5
       );
@@ -181,7 +185,10 @@ exports.generateTimetable = async (req, res) => {
 
           const slot =
             masterTimetable[classEntry.name][dayIndex].slots[periodIndex];
-          slot.subject = assignment.subject;
+          
+          // 🚀 slot.subject now correctly receives the Subject NAME
+          slot.subject = assignment.subject; 
+          
           slot.teacher = assignment.teacher;
           slot.room = assignment.isLab
             ? rooms.find((r) => r.includes("LAB")) || "LAB"
