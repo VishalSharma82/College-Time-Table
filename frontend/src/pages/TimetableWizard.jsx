@@ -174,6 +174,7 @@ export default function TimetableWizard() {
   };
 
   const handleAddTeacher = () => {
+    // Note: newTeacher.subjects is already an Array due to useState initialization
     if (newTeacher.name && newTeacher.subjects.length > 0) {
       setTeachers([...teachers, newTeacher]);
       setNewTeacher({ name: "", subjects: [] });
@@ -341,6 +342,7 @@ export default function TimetableWizard() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("User not authenticated.");
 
+      // This part sends the Array data, which is now correct for the backend.
       await api.patch(
         `/groups/${groupId}/timetable`,
         { timetable: generatedTimetable },
@@ -378,19 +380,30 @@ export default function TimetableWizard() {
 
     if (!sourceDay || !destinationDay) return;
 
-    const [removedSlot] = sourceDay.slots.splice(result.source.index, 1, {
-      period: sourceDay.slots[result.source.index].period,
-      subject: "Free",
-      teacher: "N/A",
-      room: "N/A",
+    // Swap the data content, keeping the period number intact
+    const destinationSlotData = destinationDay.slots[result.destination.index];
+    const sourceSlotData = sourceDay.slots[result.source.index];
+
+    // Create copies of the data to swap, preserving the original slot's period number
+    const movedData = { ...sourceSlotData };
+    const destinationData = { ...destinationSlotData };
+
+    // Swap Logic: destination gets source's content, source gets destination's content
+    destinationDay.slots.splice(result.destination.index, 1, {
+      ...destinationSlotData,
+      subject: movedData.subject,
+      teacher: movedData.teacher,
+      room: movedData.room,
+      isLab: movedData.isLab, // Include isLab if needed
     });
 
-    const [destinationSlot] = destinationDay.slots.splice(
-      result.destination.index,
-      1,
-      removedSlot
-    );
-    sourceDay.slots[result.source.index] = destinationSlot;
+    sourceDay.slots.splice(result.source.index, 1, {
+      ...sourceSlotData,
+      subject: destinationData.subject,
+      teacher: destinationData.teacher,
+      room: destinationData.room,
+      isLab: destinationData.isLab, // Include isLab if needed
+    });
 
     setGeneratedTimetable(newTimetable);
   };
@@ -658,7 +671,8 @@ export default function TimetableWizard() {
                   );
                   const periods = assignment ? assignment.periods : 0;
                   const teacher = assignment ? assignment.teacher : "";
-                  // TimetableWizard.jsx - part of renderStep() case 3
+
+                  // Filter teachers based on subject abbreviation/name match
                   const availableTeachers = teachers.filter(
                     (t) =>
                       t.subjects.includes(sub.name) ||
@@ -822,23 +836,28 @@ export default function TimetableWizard() {
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Day
                               </th>
-                              {generatedTimetable[0]?.slots.map((_, i) => (
+                              {/* FIX: Use optional chaining on the array directly */}
+                              {generatedTimetable?.[0]?.slots.length > 0 ? generatedTimetable[0].slots.map((_, i) => (
                                 <th
                                   key={i}
                                   className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 >
                                   Period {i + 1}
                                 </th>
-                              ))}
+                              )) : null}
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
-                            {Object.values(generatedTimetable)[0]?.map((day) => (
+                            {/* FIX: Access generatedTimetable directly as it is now an Array */}
+                            {generatedTimetable?.map((day) => (
                               <tr key={day.day}>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                   {day.day}
                                 </td>
-                                <Droppable droppableId={day.day} direction="horizontal">
+                                <Droppable
+                                  droppableId={day.day}
+                                  direction="horizontal"
+                                >
                                   {(provided) => (
                                     <td
                                       ref={provided.innerRef}
@@ -857,7 +876,9 @@ export default function TimetableWizard() {
                                               {...provided.draggableProps}
                                               {...provided.dragHandleProps}
                                               className={`p-4 m-2 text-center rounded-lg shadow-sm border border-gray-200 ${
-                                                snapshot.isDragging ? "bg-indigo-100" : "bg-gray-100"
+                                                snapshot.isDragging
+                                                  ? "bg-indigo-100"
+                                                  : "bg-gray-100"
                                               } min-w-[120px]`}
                                             >
                                               <p className="font-semibold text-gray-700">
@@ -882,10 +903,16 @@ export default function TimetableWizard() {
                     </DragDropContext>
                   </div>
                   <div className="flex justify-between mt-8">
-                    <ActionButton onClick={() => setStep(3)} className="bg-gray-500 text-white">
+                    <ActionButton
+                      onClick={() => setStep(3)}
+                      className="bg-gray-500 text-white"
+                    >
                       Back
                     </ActionButton>
-                    <ActionButton onClick={handleSaveFinalTimetable} loading={loading}>
+                    <ActionButton
+                      onClick={handleSaveFinalTimetable}
+                      loading={loading}
+                    >
                       Save Timetable
                     </ActionButton>
                   </div>
@@ -912,16 +939,22 @@ export default function TimetableWizard() {
                       className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6"
                       role="alert"
                     >
-                      <strong className="font-bold">Error! </strong>
+                      <strong className="font-bold">Error: </strong>
                       <span className="block sm:inline">{error}</span>
                     </div>
                   )}
 
                   <div className="flex justify-between mt-8">
-                    <ActionButton onClick={() => setStep(3)} className="bg-gray-500 text-white">
+                    <ActionButton
+                      onClick={() => setStep(3)}
+                      className="bg-gray-500 text-white"
+                    >
                       Back
                     </ActionButton>
-                    <ActionButton onClick={handlePreviewTimetable} loading={loading}>
+                    <ActionButton
+                      onClick={handlePreviewTimetable}
+                      loading={loading}
+                    >
                       Generate Timetable
                     </ActionButton>
                   </div>

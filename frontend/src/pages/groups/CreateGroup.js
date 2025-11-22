@@ -21,6 +21,7 @@ export default function CreateGroup() {
     try {
       // Include token in headers for auth
       const token = localStorage.getItem("token");
+      // The authorization logic (admin role check) is handled by the backend (requireRole middleware)
       if (!token) throw new Error("You must be logged in as admin to create a group");
 
       const res = await api.post(
@@ -34,7 +35,8 @@ export default function CreateGroup() {
         }
       );
 
-      navigate(`/groups/${res.data._id}`);
+      // Navigate to the newly created group's details page
+      navigate(`/admin/groups/${res.data._id}`); // Assuming admin pages start with /admin/groups
     } catch (err) {
       console.error("Create Group Error:", err);
       setError(
@@ -71,6 +73,7 @@ export default function CreateGroup() {
           />
           <input
             name="password"
+            type="password" // Added type password for security
             value={form.password}
             onChange={handleChange}
             required
@@ -80,7 +83,7 @@ export default function CreateGroup() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-indigo-600 text-white rounded"
+            className="w-full py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-gray-400"
           >
             {loading ? "Creating..." : "Create"}
           </button>

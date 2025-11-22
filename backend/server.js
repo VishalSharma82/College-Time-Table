@@ -30,16 +30,17 @@ app.use(cors({
     }
   },
   credentials: true, // allow cookies
-  methods: ["GET","POST","PUT","DELETE","OPTIONS"], // explicitly allow methods
+  methods: ["GET","POST","PUT","DELETE","OPTIONS", "PATCH"], // PATCH method added for completeness
   allowedHeaders: ["Content-Type","Authorization"], // allow headers
 }));
-
 
 
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/resources", resourceRoutes);
+// Note: /api/groups is where both groupRoutes and timetableRoutes are mounted,
+// which is correct as they share the base path.
 app.use("/api/groups", timetableRoutes);
 
 // Root route for testing

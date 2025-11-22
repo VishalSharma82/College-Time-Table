@@ -43,7 +43,7 @@ const timetableSlotSchema = new mongoose.Schema({
 
 // --- Timetable day (all slots for one day) ---
 const timetableDaySchema = new mongoose.Schema({
-  day: String,                // e.g. "Mon"
+  day: String,                  // e.g. "Mon"
   slots: [timetableSlotSchema],
 });
 
@@ -74,18 +74,22 @@ const groupSchema = new mongoose.Schema(
     },
 
     // core data
-    subjects: [subjectSchema],   // subject master list
-    teachers: [teacherSchema],   // teacher list
-    classes: [classSchema],      // each class with workload assignments
+    subjects: [subjectSchema],    // subject master list
+    teachers: [teacherSchema],    // teacher list
+    classes: [classSchema],       // each class with workload assignments
 
-    // ✅ timetable per class (Map: classId -> timetable days)
+    // ✅ FIXED: timetable is now an Array of timetableDaySchema (Correct structure)
     timetable: {
-      type: Map,
-      of: [timetableDaySchema],
-      default: {},
+      type: [timetableDaySchema], // <--- यह Array है, Map नहीं
+      default: [], // डिफ़ॉल्ट रूप से एक खाली ऐरे
     },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Group", groupSchema);
+console.log('--- Group Model Loading: Timetable Type is Array ---');
+
+// 🚀 CRITICAL FIX: यह लाइन सुनिश्चित करती है कि यदि मॉडल पहले से परिभाषित है
+// (Mongoose Cache में), तो यह उसे फिर से परिभाषित न करे,
+// जिससे पुरानी Map परिभाषा के साथ टकराव (conflict) समाप्त हो जाता है।
+module.exports = mongoose.models.Group || mongoose.model("Group", groupSchema);

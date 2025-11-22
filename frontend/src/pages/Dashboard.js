@@ -12,7 +12,6 @@ export default function Dashboard() {
     localStorage.removeItem("token");
     setUser(null);
     navigate("/login");
-    
   };
 
   if (!user) return <div>Loading...</div>;
@@ -23,7 +22,7 @@ export default function Dashboard() {
         <div className="flex justify-end mb-6">
           <button
             onClick={handleLogout}
-            className="px-4 py-2 bg-red-500 text-white rounded"
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
           >
             Logout
           </button>

@@ -3,7 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import TimetableTable from "./TimetableTable";
+
 export default function AdminGroupDetails({ user: initialUser }) {
+  // 🚀 FIX: classes state is needed to pass group class data to TimetableTable
   const [timetable, setTimetable] = useState([]);
   const [classes, setClasses] = useState([]);
 
@@ -12,7 +14,6 @@ export default function AdminGroupDetails({ user: initialUser }) {
 
   const [user, setUser] = useState(initialUser || null);
   const [group, setGroup] = useState(null);
-  // const [timetable, setTimetable] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -88,6 +89,7 @@ export default function AdminGroupDetails({ user: initialUser }) {
 
       setGroup(groupData);
       setTimetable(groupData.timetable || []);
+      setClasses(groupData.classes || []); // 🚀 FIX: Update classes state here
     } catch (err) {
       console.error("Fetch group error:", err.response?.data || err.message);
       setError(err.response?.data?.message || "Failed to fetch group details.");
@@ -127,12 +129,35 @@ export default function AdminGroupDetails({ user: initialUser }) {
       (d) => d.day === destination.droppableId
     );
 
+    if (sourceDayIndex === -1 || destDayIndex === -1) return;
+
     const newTimetable = [...timetable];
-    const [moved] = newTimetable[sourceDayIndex].slots.splice(source.index, 1);
-    newTimetable[destDayIndex].slots.splice(destination.index, 0, moved);
+    
+    // Get the slot data to be moved
+    const movedSlot = newTimetable[sourceDayIndex].slots[source.index];
+    const destinationSlot = newTimetable[destDayIndex].slots[destination.index];
+
+    // Preserve Period Number while swapping the data content (subject, teacher, room)
+    const movedData = { ...movedSlot };
+    const destinationData = { ...destinationSlot };
+
+    // Swap Logic
+    newTimetable[destDayIndex].slots[destination.index] = {
+      ...destinationSlot,
+      subject: movedData.subject,
+      teacher: movedData.teacher,
+      room: movedData.room,
+    };
+    newTimetable[sourceDayIndex].slots[source.index] = {
+      ...movedSlot,
+      subject: destinationData.subject,
+      teacher: destinationData.teacher,
+      room: destinationData.room,
+    };
 
     setTimetable(newTimetable);
   };
+
 
   // ➕ Add Subject
   const handleAddSubject = async () => {
@@ -199,13 +224,14 @@ export default function AdminGroupDetails({ user: initialUser }) {
         `/groups/${id}/teachers`,
         {
           ...newTeacher,
-          subjects: newTeacher.subjects.split(",").map((s) => s.trim()),
+          // IMPORTANT: Ensure this subjects field matches the backend's expected array format
+          subjects: newTeacher.subjects.split(",").map((s) => s.trim()).filter(s => s !== ''),
         },
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      setGroup({ ...group, teachers: res.data.teachers }); // ✅ FIXED
+      setGroup({ ...group, teachers: res.data.teachers });
       setNewTeacher({ name: "", subjects: "" });
     } catch (err) {
       alert(err.response?.data?.message || "Error adding teacher.");
@@ -252,7 +278,7 @@ export default function AdminGroupDetails({ user: initialUser }) {
       const res = await api.delete(`/groups/${id}/teachers/${teacherId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setGroup({ ...group, teachers: res.data.teachers }); // ✅ FIXED
+      setGroup({ ...group, teachers: res.data.teachers });
     } catch (err) {
       alert(err.response?.data?.message || "Error deleting teacher.");
     }
@@ -576,7 +602,8 @@ export default function AdminGroupDetails({ user: initialUser }) {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Day
                   </th>
-                  {Array.from({ length: 6 }, (_, i) => (
+                  {/* FIX: Use timetable length for periods dynamically */}
+                  {Array.from({ length: timetable[0]?.slots.length || 6 }, (_, i) => (
                     <th
                       key={i}
                       className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -645,7 +672,7 @@ export default function AdminGroupDetails({ user: initialUser }) {
         <h1 className="text-2xl font-bold mb-6">{group.name} Timetable</h1>
         <TimetableTable
           timetable={timetable}
-          classes={classes}
+          classes={group.classes} 
           onEdit={handleEdit}
           onDelete={handleDelete}
           onDownload={handleDownload}

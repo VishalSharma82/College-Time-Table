@@ -26,6 +26,7 @@ router.post("/register", async (req, res) => {
     if (existingUser)
       return res.status(400).json({ message: "User already exists" });
 
+    // User Schema's pre-save hook will hash the password
     const newUser = new User({ name, email, password, role });
     await newUser.save();
 
@@ -70,6 +71,7 @@ router.post("/login", async (req, res) => {
 // -------------------- GET CURRENT USER --------------------
 router.get("/me", authMiddleware, async (req, res) => {
   try {
+    // req.user.id is set by authMiddleware
     const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
 

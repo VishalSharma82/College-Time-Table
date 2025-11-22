@@ -6,7 +6,7 @@ const auth = require("../middleware/authMiddleware");
 const requireRole = require("../middleware/requireRole");
 const isGroupOwner = require("../middleware/isGroupOwner");
 const Group = require("../models/Group");
-const { updateTimetable } = require("../controllers/timetableController");
+const { updateTimetable } = require("../controllers/timetableController"); // Keep this import for the moment
 
 const router = express.Router();
 
@@ -194,7 +194,7 @@ router.delete("/:id", auth, requireRole("admin"), async (req, res) => {
 });
 
 /**
- * VIEW GROUP (any member)
+ * VIEW GROUP (any member) - Selects specific fields to avoid leaking secrets
  */
 router.get("/:id/view", auth, async (req, res) => {
   try {
@@ -210,6 +210,7 @@ router.get("/:id/view", auth, async (req, res) => {
     if (!group.members.some((m) => m._id.toString() === req.user.id))
       return res.status(403).json({ message: "You are not a member of this group" });
 
+    // Send only necessary data for viewing (security measure)
     res.json({
       name: group.name,
       owner: group.owner,
@@ -217,7 +218,7 @@ router.get("/:id/view", auth, async (req, res) => {
       teachers: group.teachers,
       classes: group.classes,
       timetable: group.timetable,
-      constraints: group.constraints,
+      // constraints: group.constraints, // group schema doesn't show constraints, excluding for safety
     });
   } catch (err) {
     console.error("Error fetching group view:", err);
@@ -250,16 +251,18 @@ router.post("/:id/subjects", auth, requireRole("admin"), isGroupOwner, async (re
 router.put("/:id/subjects/:subjectId", auth, requireRole("admin"), isGroupOwner, async (req, res) => {
   try {
     const { id, subjectId } = req.params;
-    const { name, abbreviation, isLab } = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(subjectId))
-      return res.status(400).json({ message: "Invalid ID(s)" });
+    // We check for subjectId validity inside the route to handle Mongoose subdocument IDs correctly
+    // The subject subdocument IDs are not standard ObjectIds, so we just check groupId here
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res.status(400).json({ message: "Invalid Group ID" });
 
     const group = await Group.findById(id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
     const subject = group.subjects.id(subjectId);
     if (!subject) return res.status(404).json({ message: "Subject not found" });
+
+    const { name, abbreviation, isLab } = req.body;
 
     if (name !== undefined) subject.name = name;
     if (abbreviation !== undefined) subject.abbreviation = abbreviation;
@@ -276,15 +279,17 @@ router.put("/:id/subjects/:subjectId", auth, requireRole("admin"), isGroupOwner,
 router.delete("/:id/subjects/:subjectId", auth, requireRole("admin"), isGroupOwner, async (req, res) => {
   try {
     const { id, subjectId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(subjectId))
-      return res.status(400).json({ message: "Invalid ID(s)" });
+    // We check for subjectId validity inside the route to handle Mongoose subdocument IDs correctly
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res.status(400).json({ message: "Invalid Group ID" });
 
     const group = await Group.findById(id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
-    const initialLength = group.subjects.length;
-    group.subjects = group.subjects.filter(s => s._id.toString() !== subjectId);
-    if (group.subjects.length === initialLength) return res.status(404).json({ message: "Subject not found" });
+    // Use pull or group.subjects.id(subjectId).deleteOne()
+    const subject = group.subjects.id(subjectId);
+    if (!subject) return res.status(404).json({ message: "Subject not found" });
+    subject.deleteOne(); // Use Mongoose method for embedded document removal
 
     await group.save();
     res.json({ message: "Subject deleted", subjects: group.subjects });
@@ -302,11 +307,12 @@ router.post("/:id/teachers", auth, requireRole("admin"), isGroupOwner, async (re
     const { id } = req.params;
     const { name, subjects } = req.body;
     if (!name || !Array.isArray(subjects) || subjects.length === 0)
-      return res.status(400).json({ message: "Teacher name and subjects are required" });
+      return res.status(400).json({ message: "Teacher name and subjects are required (must be an array)" });
 
     const group = await Group.findById(id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
+    // Pushing the embedded document
     group.teachers.push({ name, subjects });
     await group.save();
 
@@ -320,10 +326,9 @@ router.post("/:id/teachers", auth, requireRole("admin"), isGroupOwner, async (re
 router.put("/:id/teachers/:teacherId", auth, requireRole("admin"), isGroupOwner, async (req, res) => {
   try {
     const { id, teacherId } = req.params;
-    const { name, subjects } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(teacherId))
-      return res.status(400).json({ message: "Invalid ID(s)" });
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res.status(400).json({ message: "Invalid Group ID" });
 
     const group = await Group.findById(id);
     if (!group) return res.status(404).json({ message: "Group not found" });
@@ -331,7 +336,10 @@ router.put("/:id/teachers/:teacherId", auth, requireRole("admin"), isGroupOwner,
     const teacher = group.teachers.id(teacherId);
     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 
+    const { name, subjects } = req.body;
+    
     if (name !== undefined) teacher.name = name;
+    // Ensure subjects is an array before assigning (matching group schema)
     if (subjects !== undefined && Array.isArray(subjects)) teacher.subjects = subjects;
 
     await group.save();
@@ -345,15 +353,16 @@ router.put("/:id/teachers/:teacherId", auth, requireRole("admin"), isGroupOwner,
 router.delete("/:id/teachers/:teacherId", auth, requireRole("admin"), isGroupOwner, async (req, res) => {
   try {
     const { id, teacherId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(teacherId))
-      return res.status(400).json({ message: "Invalid ID(s)" });
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res.status(400).json({ message: "Invalid Group ID" });
 
     const group = await Group.findById(id);
     if (!group) return res.status(404).json({ message: "Group not found" });
 
-    const initialLength = group.teachers.length;
-    group.teachers = group.teachers.filter(t => t._id.toString() !== teacherId);
-    if (group.teachers.length === initialLength) return res.status(404).json({ message: "Teacher not found" });
+    // Use Mongoose method for embedded document removal
+    const teacher = group.teachers.id(teacherId);
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
+    teacher.deleteOne();
 
     await group.save();
     res.json({ message: "Teacher deleted", teachers: group.teachers });
@@ -366,6 +375,8 @@ router.delete("/:id/teachers/:teacherId", auth, requireRole("admin"), isGroupOwn
 /**
  * TIMETABLE UPDATE
  */
-router.patch("/:id/timetable", auth, requireRole("admin"), isGroupOwner, updateTimetable);
+// 🛑 IMPORTANT: This route is redundant if you use timetableRoutes.js.
+// It is commented out to prevent double definition and potential issues.
+// router.patch("/:id/timetable", auth, requireRole("admin"), isGroupOwner, updateTimetable);
 
 module.exports = router;

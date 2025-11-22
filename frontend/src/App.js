@@ -22,6 +22,7 @@ const ProtectedRoute = ({ children, roles }) => {
 
   if (!user) return <Navigate to="/login" />;
 
+  // Check if user role is included in required roles
   if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" />;
 
   return children;
@@ -43,7 +44,8 @@ function App() {
           path="/register"
           element={!user ? <Register /> : <Navigate to="/dashboard" />}
         />
-        {/* Protected Dashboard */}
+        
+        {/* Protected Dashboard (Any logged-in user) */}
         <Route
           path="/dashboard"
           element={
@@ -52,7 +54,8 @@ function App() {
             </ProtectedRoute>
           }
         />
-        {/* Protected Group Routes */}
+        
+        {/* Protected Group Creation (Admin only) */}
         <Route
           path="/groups/create"
           element={
@@ -61,14 +64,20 @@ function App() {
             </ProtectedRoute>
           }
         />
+        
+        {/* Protected Group Joining (Any user role, assuming "user" is not a formal role name but we leave it as is) */}
         <Route
           path="/groups/join"
           element={
-            <ProtectedRoute roles={["user"]}>
+            // Note: If you want all non-admin roles (faculty, student) to join, use roles={["faculty", "student"]}
+            // If you intend for *any* logged-in user to join, you don't need the roles prop here.
+            <ProtectedRoute> 
               <JoinGroup />
             </ProtectedRoute>
           }
         />
+        
+        {/* PRIMARY GROUP DETAIL ROUTE (Handles Admin/User view based on role) */}
         <Route
           path="/groups/:id"
           element={
@@ -78,15 +87,8 @@ function App() {
             </ProtectedRoute>
           }
         />
-        {/* New Admin-only Group Routes */}
-        <Route
-          path="/groups/:id"
-          element={
-            <ProtectedRoute roles={["admin"]}>
-              <AdminGroupDetails user={user} />
-            </ProtectedRoute>
-          }
-        />
+
+        {/* TIMETABLE WIZARD ROUTE (Admin only, requires owner check inside the component) */}
         <Route
           path="/groups/:id/timetable-wizard"
           element={
@@ -95,6 +97,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        
         {/* Catch All */}
         <Route
           path="*"
