@@ -11,6 +11,12 @@ const timetableRoutes = require("./routes/timetableRoutes");
 
 dotenv.config();
 
+// ✅ ENV CHECK
+if (!process.env.MONGO_URI || !process.env.JWT_SECRET) {
+  console.error("❌ CRITICAL ERROR: Missing MONGO_URI or JWT_SECRET in environment variables.");
+  process.exit(1);
+}
+
 const app = express();
 
 // ✅ TRUST RENDER PROXY

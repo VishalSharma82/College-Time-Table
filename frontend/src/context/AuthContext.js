@@ -25,15 +25,16 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Sync user to localStorage
+  // Sync user and token to localStorage
   useEffect(() => {
     if (user) {
       localStorage.setItem("user", JSON.stringify(user));
-    } else {
+    } else if (!loading) {
+      // Only remove if we are sure we are logged out (loading is false)
       localStorage.removeItem("user");
       localStorage.removeItem("token");
     }
-  }, [user]);
+  }, [user, loading]);
 
   // Logout function
   const logout = () => {
