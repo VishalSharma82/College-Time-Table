@@ -20,31 +20,27 @@ app.set("trust proxy", 1);
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ ALLOWED ORIGINS
 const allowedOrigins = [
   "https://college-timetable-system.onrender.com",
   "http://localhost:3000"
 ];
 
-// ✅ FIXED CORS FOR RENDER + LOCALHOST
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // Allow Postman / Server calls
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
+    } else {
+      console.log("❌ Blocked CORS:", origin);
+      return callback(new Error("Not allowed by CORS"));
     }
-
-    console.log("❌ CORS BLOCKED:", origin);
-    return callback(new Error("CORS blocked"));
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// ✅ HANDLE PREFLIGHT OPTIONS (IMPORTANT)
-app.options("*", cors());
 
 // ✅ ROUTES
 app.use("/api/auth", authRoutes);
