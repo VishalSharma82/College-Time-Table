@@ -31,7 +31,7 @@
     "pdfkit": "^0.17.2",
     "timetablemanager": "file:..",
     "uuid": "^11.1.0",
-    "validator": "^13.15.15"
+    "validator": "^13.15.26"
   },
   "description": "",
   "devDependencies": {

@@ -6,33 +6,40 @@ const authRoutes = require("./routes/authRoutes");
 const groupRoutes = require('./routes/groupRoutes');
 const resourceRoutes = require('./routes/resourceRoutes');
 const timetableRoutes = require("./routes/timetableRoutes");
+const cookieParser = require("cookie-parser");
 
 dotenv.config();
 const app = express();
 
 // Middleware
 app.use(express.json());
+app.use(cookieParser());
 
 const allowedOrigins = [
   "https://college-timetable-system.onrender.com",
-  "http://localhost:3000" // new live frontend
+  "http://localhost:3000"
 ];
 
 app.use(cors({
-  origin: function(origin, callback) {
-    // allow requests with no origin (like Postman)
-    if (!origin) return callback(null, true);
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // allow Postman
 
-    if (allowedOrigins.includes(origin)) {
+    const isAllowed = allowedOrigins.some((allowed) =>
+      origin.startsWith(allowed)
+    );
+
+    if (isAllowed) {
       callback(null, true);
     } else {
-      callback(new Error(`CORS Error: Origin ${origin} not allowed`));
+      console.log("❌ Blocked by CORS:", origin);
+      callback(new Error("CORS not allowed"));
     }
   },
-  credentials: true, // allow cookies
-  methods: ["GET","POST","PUT","DELETE","OPTIONS", "PATCH"], // PATCH method added for completeness
-  allowedHeaders: ["Content-Type","Authorization"], // allow headers
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 }));
+
 
 
 // Routes

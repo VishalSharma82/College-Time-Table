@@ -23,11 +23,11 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const res = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/auth/login`,
-        form,
-        { withCredentials: true } // keep if using cookies
-      );
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
+      const res = await axios.post(`${API_URL}/api/auth/login`, form, {
+        withCredentials: true,
+      });
 
       localStorage.setItem("token", res.data.token);
       setUser(res.data.user);
@@ -35,7 +35,8 @@ const Login = () => {
     } catch (err) {
       console.error("Login error:", err);
       setError(
-        err.response?.data?.message || "Something went wrong. Please try again."
+        err.response?.data?.message ||
+          "Something went wrong. Please try again.",
       );
     } finally {
       setLoading(false);
