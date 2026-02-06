@@ -15,30 +15,33 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
+app.set("trust proxy", 1);
+
+app.use(express.json());
+app.use(cookieParser());
+
 const allowedOrigins = [
   "https://college-timetable-system.onrender.com",
   "http://localhost:3000"
 ];
 
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow Postman
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
 
-    const isAllowed = allowedOrigins.some((allowed) =>
-      origin.startsWith(allowed)
-    );
-
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      console.log("❌ Blocked by CORS:", origin);
-      callback(new Error("CORS not allowed"));
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+
+    console.log("❌ CORS BLOCKED:", origin);
+    return callback(new Error("CORS blocked"));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
+
+app.options("*", cors());
 
 
 
