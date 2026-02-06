@@ -30,10 +30,11 @@ router.post("/register", async (req, res) => {
     const newUser = new User({ name, email, password, role });
     await newUser.save();
 
+    console.log(`✅ User registered successfully: ${email}`);
     res.status(201).json({ message: "✅ User registered successfully" });
   } catch (err) {
-    console.error("Register error:", err.message);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Register error:", err.message);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
@@ -53,6 +54,7 @@ router.post("/login", async (req, res) => {
 
     const token = generateToken(user);
 
+    console.log(`✅ User logged in successfully: ${email}`);
     res.json({
       token,
       user: {
@@ -63,8 +65,8 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Login error:", err.message);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Login error:", err.message);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 

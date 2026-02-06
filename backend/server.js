@@ -48,6 +48,12 @@ app.options("*", cors());
 app.use(express.json());
 app.use(cookieParser());
 
+// ✅ REQUEST LOGGER
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
 // ✅ ROUTES
 app.use("/api/auth", authRoutes);
 app.use("/api/groups", groupRoutes);
@@ -56,7 +62,11 @@ app.use("/api/timetables", timetableRoutes);
 
 // ✅ ROOT TEST ROUTE
 app.get("/", (req, res) => {
-  res.send("Backend is running!");
+  res.json({
+    status: "Backend is running!",
+    timestamp: new Date().toISOString(),
+    dbConnected: mongoose.connection.readyState === 1
+  });
 });
 
 // ✅ DATABASE + SERVER START
