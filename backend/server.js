@@ -17,36 +17,24 @@ const app = express();
 app.set("trust proxy", 1);
 
 // ✅ MIDDLEWARE
-app.use(express.json());
-app.use(cookieParser());
-
-const allowedOrigins = [
-  "https://college-timetable-system.onrender.com",
-  "http://localhost:3000"
-];
-
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      console.log("❌ Blocked CORS:", origin);
-      return callback(new Error("Not allowed by CORS"));
-    }
-  },
+  origin: [
+    "https://college-timetable-system.onrender.com",
+    "http://localhost:3000"
+  ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
+app.use(express.json());
+app.use(cookieParser());
 
 // ✅ ROUTES
 app.use("/api/auth", authRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/resources", resourceRoutes);
-app.use("/api/groups", timetableRoutes);
+app.use("/api/timetables", timetableRoutes);
 
 // ✅ ROOT TEST ROUTE
 app.get("/", (req, res) => {
