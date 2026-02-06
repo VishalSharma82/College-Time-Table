@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
+import API from "../api/axios"; // ✅ use centralized axios instance
 import { AiOutlineUser, AiOutlineMail, AiOutlineLock } from "react-icons/ai";
 import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
 
@@ -11,6 +11,7 @@ const Register = () => {
     password: "",
     role: "student",
   });
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -26,16 +27,13 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
-
-      await axios.post(`${API_URL}/api/auth/register`, form, {
-        withCredentials: true,
-      });
+      await API.post("/auth/register", form);
       navigate("/login");
     } catch (err) {
+      console.error("Register error:", err);
       setError(
-        err.response?.data?.message ||
-          "Something went wrong. Please try again.",
+        err.response?.data?.message || 
+        "Something went wrong. Please try again."
       );
     } finally {
       setLoading(false);
@@ -45,6 +43,7 @@ const Register = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-500 to-indigo-600 px-4">
       <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md">
+
         <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">
           Create Account 🚀
         </h2>
@@ -56,6 +55,7 @@ const Register = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
+
           {/* Name */}
           <div className="relative">
             <AiOutlineUser className="absolute left-3 top-3 text-gray-400 text-xl" />
@@ -102,27 +102,21 @@ const Register = () => {
               className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? (
-                <IoEyeOffOutline size={20} />
-              ) : (
-                <IoEyeOutline size={20} />
-              )}
+              {showPassword ? <IoEyeOffOutline size={20} /> : <IoEyeOutline size={20} />}
             </button>
           </div>
 
           {/* Role */}
-          <div>
-            <select
-              name="role"
-              onChange={handleChange}
-              value={form.role}
-              className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            >
-              <option value="student">🎓 Student</option>
-              <option value="faculty">👨‍🏫 Faculty</option>
-              <option value="admin">🛠 Admin</option>
-            </select>
-          </div>
+          <select
+            name="role"
+            onChange={handleChange}
+            value={form.role}
+            className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+          >
+            <option value="student">🎓 Student</option>
+            <option value="faculty">👨‍🏫 Faculty</option>
+            <option value="admin">🛠 Admin</option>
+          </select>
 
           {/* Submit */}
           <button
@@ -136,6 +130,7 @@ const Register = () => {
               "Register"
             )}
           </button>
+
         </form>
 
         <p className="mt-6 text-sm text-gray-600 text-center">
@@ -144,6 +139,7 @@ const Register = () => {
             Login
           </Link>
         </p>
+
       </div>
     </div>
   );
