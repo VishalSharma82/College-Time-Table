@@ -17,15 +17,27 @@ const app = express();
 app.set("trust proxy", 1);
 
 // ✅ MIDDLEWARE
+const allowedOrigins = [
+  "https://college-timetable-system.onrender.com",
+  "http://localhost:3000"
+];
+
 app.use(cors({
-  origin: [
-    "https://college-timetable-system.onrender.com",
-    "http://localhost:3000"
-  ],
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  optionsSuccessStatus: 200
 }));
+
+// Handle preflight requests for all routes
+app.options("*", cors());
 
 app.use(express.json());
 app.use(cookieParser());

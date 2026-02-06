@@ -1,5 +1,5 @@
 import React, { useState, useContext } from "react";
-import axios from "axios";
+import API from "../api/axios";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { AiOutlineMail, AiOutlineLock } from "react-icons/ai";
@@ -23,11 +23,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
-
-      const res = await axios.post(`${API_URL}/api/auth/login`, form, {
-        withCredentials: true,
-      });
+      const res = await API.post("/auth/login", form);
 
       localStorage.setItem("token", res.data.token);
       setUser(res.data.user);
